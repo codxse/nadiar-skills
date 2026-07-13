@@ -1,7 +1,7 @@
 {
   "name": "superglue",
   "description": "Reference skill for Superglue 2.0 (thoughtbot's Rails+React+Redux framework, v2/beta) — navigation, Super Turbo Streams, forms, fragments/state, digging, deferments.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": {
     "name": "Nadiar"
   },
