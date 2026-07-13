@@ -41,25 +41,31 @@ Restart Claude Code (or start a new session) so the plugin loads. Verify it's in
 /plugin marketplace remove nadiar-skills
 ```
 
-## Install — Codex / ChatGPT
+## Install — Codex
 
-Codex discovers skills by scanning plain directories (`.agents/skills` in a repo, or `~/.agents/skills` for every repo) — no submission/review needed for personal use. Copy (or symlink) the skill folder in:
+Requires the [Codex CLI](https://github.com/openai/codex). It reads the same `.claude-plugin/marketplace.json` this repo already has, so the flow is a straight parallel to the Claude Code one — verified working with `codex-cli 0.144.1`:
 
 ```
-git clone https://github.com/codxse/nadiar-skills.git /tmp/nadiar-skills
-
-# repo-local (only active in this one project):
-mkdir -p .agents/skills
-cp -r /tmp/nadiar-skills/plugins/superglue/skills/superglue .agents/skills/superglue
-
-# or user-global (active in every project):
-mkdir -p ~/.agents/skills
-cp -r /tmp/nadiar-skills/plugins/superglue/skills/superglue ~/.agents/skills/superglue
+codex plugin marketplace add codxse/nadiar-skills
+codex plugin add superglue@nadiar-skills
 ```
 
-Codex picks it up automatically on the next run — `SKILL.md`'s `name`/`description` frontmatter is the same format Claude Code uses, so no edits are needed.
+Verify:
 
-Each plugin also carries a `.codex-plugin/plugin.json` (see `plugins/superglue/.codex-plugin/plugin.json`) for the formal, reviewed [Codex plugin directory](https://learn.chatgpt.com/codex/submit-plugins) path, if it's ever worth submitting there — see [Build plugins](https://learn.chatgpt.com/codex/build-plugins) for what that process involves. That's a separate, heavier flow (OpenAI org verification, review) not done as part of this repo.
+```
+codex plugin list
+```
+
+**Updating / removing:**
+
+```
+codex plugin marketplace upgrade nadiar-skills
+codex plugin remove superglue@nadiar-skills
+```
+
+**Alternative** for repo-scoped use without going through a marketplace at all: Codex also scans plain `.agents/skills` directories (repo-local) and `~/.agents/skills` (every repo). Copying `plugins/superglue/skills/superglue/` in there works too, since `SKILL.md`'s `name`/`description` frontmatter is the same format Claude Code uses.
+
+Each plugin also carries a dedicated `.codex-plugin/plugin.json` (see `plugins/superglue/.codex-plugin/plugin.json`) matching Codex's own manifest schema, for the formal, reviewed [Codex plugin directory](https://learn.chatgpt.com/codex/submit-plugins) path if it's ever worth submitting there — see [Build plugins](https://learn.chatgpt.com/codex/build-plugins). That submission flow (OpenAI org verification, review) is separate and not done as part of this repo.
 
 ## Plugins
 
