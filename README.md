@@ -5,7 +5,7 @@ Personal Claude Code plugin marketplace. One plugin per skill, added here as it'
 ## Install
 
 ```
-/plugin marketplace add <your-github-username>/<this-repo-name>
+/plugin marketplace add codxse/nadiar-skills
 /plugin install superglue@nadiar-skills
 ```
 
