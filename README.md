@@ -4,9 +4,41 @@ Personal Claude Code plugin marketplace. One plugin per skill, added here as it'
 
 ## Install
 
+Requires [Claude Code](https://claude.com/code).
+
+**Inside a Claude Code session:**
+
 ```
 /plugin marketplace add codxse/nadiar-skills
 /plugin install superglue@nadiar-skills
+```
+
+**From a shell** (equivalent, e.g. for scripting/dotfiles):
+
+```
+claude plugin marketplace add codxse/nadiar-skills
+claude plugin install superglue@nadiar-skills
+```
+
+Restart Claude Code (or start a new session) so the plugin loads. Verify it's installed:
+
+```
+/plugin
+# or: claude plugin list
+```
+
+**Updating**, once this repo gets new commits:
+
+```
+/plugin marketplace update nadiar-skills
+/plugin update superglue
+```
+
+**Uninstalling:**
+
+```
+/plugin uninstall superglue
+/plugin marketplace remove nadiar-skills
 ```
 
 ## Plugins
