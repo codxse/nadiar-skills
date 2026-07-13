@@ -1,0 +1,12 @@
+{
+  "name": "nadiar-skills",
+  "description": "Nadiar's personal Claude Code + Codex skills marketplace",
+  "plugins": [
+    {
+      "name": "superglue",
+      "source": { "source": "local", "path": "./plugins/superglue" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_USE" },
+      "category": "Development"
+    }
+  ]
+}
