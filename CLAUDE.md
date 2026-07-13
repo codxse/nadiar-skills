@@ -1,6 +1,6 @@
 # nadiar-skills: personal Claude Code + Codex plugin marketplace
 
-Despite the directory name (`superglue-rails-react`), this repo is not a Rails/React app — it's a marketplace repo. Each plugin lives under `plugins/<name>/`, with the actual skill nested one level deeper at `plugins/<name>/skills/<name>/SKILL.md`.
+Each plugin lives under `plugins/<name>/`, with the actual skill nested one level deeper at `plugins/<name>/skills/<name>/SKILL.md`.
 
 ## Gotchas & conventions
 
