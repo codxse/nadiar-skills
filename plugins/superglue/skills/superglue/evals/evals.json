@@ -1,0 +1,57 @@
+{
+  "skill_name": "superglue",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm working on a Superglue 2.0 Rails app (thoughtbot's Rails+React framework). On the post show page (app/views/posts/show.json.props + show.tsx), add a form to create a new Comment belonging to the post. It should submit without a full page reload, and if validation fails it should show the error message next to the field instead of just redirecting. Use TypeScript for the component.",
+      "expected_output": "Uses form_props on the Rails side (f.text_field/f.text_area + f.submit) producing {props, extras, inputs}, a .tsx component spreading those onto Form/TextField/SubmitButton-style components, data-sg-remote (not data-sg-visit) on the form so it stays on-page, and validation errors surfaced via flash.now[...] + useFlash() with an errorKey per field (not a client-side form library like react-hook-form, and not a bare fetch/axios call).",
+      "files": [],
+      "expectations": [
+        "Rails side uses form_props (not a hand-rolled form_with or raw HTML form)",
+        "The form carries data-sg-remote (not data-sg-visit, not a bare onSubmit fetch call)",
+        "Validation errors surfaced via flash.now[...] read through useFlash(), not an ad hoc error blob or client-only validation library",
+        "The new/edited component is TypeScript (.tsx)",
+        "Does NOT use a client-side form library (react-hook-form, Formik, zod-based validation)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "In my Superglue 2.0 app, I have a ChatMessage model. I want new messages to show up instantly for every other connected user without a page reload, and the person who just sent the message should see it appear immediately too, without waiting on the websocket round trip.",
+      "expected_output": "Uses Super Turbo Streams: ActionCable-based broadcast_append_to (or the model-level Superglue::Broadcastable + broadcasts_to) to push the new message's fragment to every OTHER subscribed client, AND a stream response (render layout: \"stream\" + broadcast_append_props in create.json.props) so the acting user's own request gets the update immediately over plain HTTP instead of waiting for the cable echo. Client side subscribes via useStreamSource fed by stream_from_props. Should not reach for a generic setInterval poll, a bare ActionCable channel with manual DOM/state patching, or Turbo Streams (HTML) — this is Superglue's JSON/fragment-based equivalent.",
+      "files": [],
+      "expectations": [
+        "Server sets up an ActionCable subscription via stream_from_props",
+        "Client subscribes via useStreamSource fed by that prop",
+        "Other clients receive the message via broadcast_append_to/broadcast_append_later_to (or Broadcastable + broadcasts_to), not a poll or hand-rolled channel patching state directly",
+        "Acting user gets immediate feedback via render layout: \"stream\" + broadcast_append_props, not by waiting for their own broadcast echo",
+        "Does not implement this via Hotwire/Turbo Streams (turbo_stream_from, HTML broadcasts)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Two performance/UX issues on my Superglue 2.0 app: (1) the dashboard page (app/views/dashboards/show.json.props) is slow to load because it computes an expensive analytics rollup, and (2) I have a cart-item-count badge in the header layout and also in a slide-out cart drawer, and right now adding an item on the product page doesn't update the badge until a full reload — I want it to update instantly everywhere the count is shown.",
+      "expected_output": "For (1): recommends defer: :auto (with a placeholder) on the analytics node in the .json.props file rather than eager-loading it or building a separate polling endpoint. For (2): recommends turning the cart/cart-count into a Fragment (partial: [..., fragment: \"...\"]) rather than a plain duplicated prop in the layout, since a fragment normalizes to one instance that every consumer (header badge + drawer) shares, and mutating it once via useUpdateFragment (or a stream broadcast) updates every consumer. Should not suggest client-side global state management (e.g. a separate Context/Zustand store) to solve the cart-sync problem, and should not suggest eager-loading the analytics data to 'just make it correct'.",
+      "files": [],
+      "expectations": [
+        "Analytics node wrapped in defer: :auto (with placeholder) rather than eager-loaded or moved to a separate polling endpoint",
+        "Cart/cart-count modeled as a Fragment (partial: [..., fragment: \"...\"]), not duplicated as a plain prop in header + drawer separately",
+        "Header badge and drawer reference the SAME fragment id",
+        "Client-side cart update goes through useUpdateFragment (or a broadcast), not a bespoke Context/Zustand/Redux-slice store bolted on top",
+        "Does not suggest eager-loading the slow analytics data to sidestep the performance complaint"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I found this old Superglue snippet on a blog and I'm trying to adapt it into my app/javascript/application.js:\n\n```jsx\nimport { Application } from '@thoughtbot/superglue'\nimport { store } from './store'\n\nfunction App() {\n  return (\n    <Application\n      initialPage={window.SUPERGLUE_INITIAL_PAGE_STATE}\n      baseUrl={location.origin}\n      path={location.pathname + location.search + location.hash}\n      store={store}\n      buildVisitAndRemote={buildVisitAndRemote}\n      mapping={mapping}\n    />\n  )\n}\n```\n\nCan you help me wire this up properly in my project? I'm on the latest Superglue (checked package.json, it's the 2.0 beta).",
+      "expected_output": "Recognizes this snippet is Superglue 1.x syntax (the <Application> component, a hand-built store passed in) which no longer exists in 2.0, rather than just patching it in place or treating it as correct. Rewrites it using createApp({...}) returning {Provider, Outlet, ujs}, drops the manual store/store.js entirely (v2 builds it internally), wires ujs.onClick/onSubmit onto the mount point, and updates buildVisitAndRemote to the v2 single-context-object signature ({navigateTo, visit, remote}) instead of the old (navigatorRef, store) positional args.",
+      "files": [],
+      "expectations": [
+        "Explicitly flags the snippet as Superglue 1.x/outdated rather than treating it as valid 2.0 code",
+        "Rewritten application.js uses createApp({...}) -> {Provider, Outlet, ujs}, not <Application>",
+        "Does not retain a hand-built store passed via a store prop",
+        "ujs.onClick/ujs.onSubmit wired onto the mount point",
+        "Any touched buildVisitAndRemote uses the v2 ({navigateTo, visit, remote}) signature, not v1 positional args"
+      ]
+    }
+  ]
+}

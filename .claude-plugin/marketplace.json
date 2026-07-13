@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "nadiar-skills",
+  "description": "Nadiar's personal Claude Code skills marketplace",
+  "owner": {
+    "name": "Nadiar"
+  },
+  "plugins": [
+    {
+      "name": "superglue",
+      "description": "Reference skill for Superglue 2.0 (thoughtbot's Rails+React+Redux framework, v2/beta) — navigation, Super Turbo Streams, forms, fragments/state, digging, deferments.",
+      "author": {
+        "name": "Nadiar"
+      },
+      "category": "development",
+      "source": "./plugins/superglue",
+      "keywords": ["superglue", "rails", "react", "redux", "hotwire", "thoughtbot"]
+    }
+  ]
+}
