@@ -1,0 +1,11 @@
+{
+  "name": "nano-banana",
+  "version": "1.0.0",
+  "description": "Generate, edit, and compose images with Google's Gemini image models (Nano Banana / Nano Banana Pro) and write them straight into the workspace — writes the prompt for you, picks model and resolution, lands the file at the path you name.",
+  "author": {
+    "name": "Nadiar"
+  },
+  "license": "MIT",
+  "keywords": ["nano-banana", "gemini", "image-generation", "images", "assets", "google"],
+  "skills": "./skills/"
+}
