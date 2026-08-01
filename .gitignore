@@ -1,3 +1,5 @@
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .ruby-lsp/
+.nanobanana.jsonl
+__pycache__/

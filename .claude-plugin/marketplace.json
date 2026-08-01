@@ -15,6 +15,16 @@
       "category": "development",
       "source": "./plugins/superglue",
       "keywords": ["superglue", "rails", "react", "redux", "hotwire", "thoughtbot"]
+    },
+    {
+      "name": "nano-banana",
+      "description": "Generate, edit, and compose images with Google's Gemini image models (Nano Banana / Nano Banana Pro) and write them straight into the workspace — writes the prompt for you, picks model and resolution, lands the file at the path you name.",
+      "author": {
+        "name": "Nadiar"
+      },
+      "category": "development",
+      "source": "./plugins/nano-banana",
+      "keywords": ["nano-banana", "gemini", "image-generation", "images", "assets", "google"]
     }
   ]
 }
