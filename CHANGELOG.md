@@ -2,6 +2,18 @@
 
 Notable changes to plugins in this marketplace, grouped by plugin. Versions follow [Semantic Versioning](https://semver.org/) and match each plugin's `.claude-plugin/plugin.json` / `.codex-plugin/plugin.json` `version` field.
 
+## qwen-image
+
+### 1.0.0 — 2026-08-06
+
+- Initial release: image generation and editing against Alibaba Cloud Model Studio's Qwen-Image family (`qwen-image-3.0-pro`, `qwen-image-2.0-pro`, `qwen-image-2.0`, `qwen-image-max`, `qwen-image-plus`, `qwen-image`, `qwen-image-edit-max`, `qwen-image-edit-plus`, `qwen-image-edit`) via the synchronous `multimodal-generation/generation` endpoint
+- `scripts/qwenimage.py` — stdlib-only Python, no `pip install`; `generate`/`edit`, up to 3 input images fused per edit, variants via `--n` returned in a single request, never overwrites an existing output, appends every render to a gitignored `.qwenimage.jsonl` with the full prompt, parameters and `request_id`
+- Per-model limits validated locally before any request is sent, so a wrong model/size/`n` combination costs nothing; automatic backoff on `Throttling.RateQuota`, which Model Studio workspaces hit easily
+- `reference/prompting.md` — checklist, templates and failure modes written around Qwen's own behaviour: the server-side `prompt_extend` rewriter, the real `--negative-prompt` parameter, `--seed` iteration, and CJK text rendering
+- `reference/api.md` — endpoints, per-model size/`n` matrix, request/response shapes and error codes, flagging where the published docs disagree with the live API
+- Positioned as the alternative to `nano-banana`: triggers on Qwen/Model Studio/DashScope by name, on a rejected nano-banana render, on in-image text (especially Chinese/Japanese/Korean), and on outputs above 2048px per side
+- Verified against the live Singapore endpoint: `size` is `width*height` (confirmed by reading the PNG header), output is 8-bit RGB PNG with no alpha, `usage` returns `output_width`/`output_height`/`output_image_count` rather than the documented `width`/`height`/`image_count`, `qwen-image-3.0-pro` accepts area up to 2560² rather than the documented 2048², and `qwen-image-edit` silently ignores an out-of-range `n` — billing every requested render while returning one image
+
 ## nano-banana
 
 ### 1.0.0 — 2026-08-01
