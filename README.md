@@ -12,6 +12,7 @@ Requires [Claude Code](https://claude.com/code).
 /plugin marketplace add codxse/nadiar-skills
 /plugin install superglue@nadiar-skills
 /plugin install nano-banana@nadiar-skills
+/plugin install qwen-image@nadiar-skills
 ```
 
 **From a shell** (equivalent, e.g. for scripting/dotfiles):
@@ -92,6 +93,23 @@ The point is that you don't write the prompt. "I need a hero image for the prici
 Renders cost roughly $0.03–0.24 each depending on model and resolution; the script bills from the token usage the API reports, prints the cost of every call, and appends a full record — prompt, parameters, price — to a gitignored `.nanobanana.jsonl` at your repo root, so a later "same but warmer lighting" is a real edit rather than a reroll.
 
 Source: `plugins/nano-banana/skills/nano-banana/`.
+
+### `qwen-image`
+
+The same job as `nano-banana`, against Alibaba Cloud [Model Studio](https://modelstudio.console.alibabacloud.com/)'s Qwen-Image family instead of Gemini. It exists so there is a second opinion available when a render gets rejected — and because Qwen is meaningfully better at two things: **legible text inside the image**, including Chinese, Japanese and Korean, and **large outputs**, up to roughly 2560×2560 on `qwen-image-3.0-pro`.
+
+Triggers on Qwen / Model Studio / DashScope / Aliyun by name, on "try that again with something else" after a nano-banana render, on in-image typography, and on editing or fusing up to three images already on disk.
+
+**Requirements:**
+
+- `QWEN_API_KEY` and `QWEN_API_HOST` exported. Both come from the Model Studio console; the host is your workspace's dedicated endpoint, e.g. `ws-xxxxxxxxxxxx.ap-southeast-1.maas.aliyuncs.com`. Same zsh caveat as above — **`~/.zshenv`, not `~/.zshrc`**.
+- **Region matters.** Singapore (`ap-southeast-1`) and Beijing (`cn-beijing`) issue separate keys against separate hosts and cannot be mixed; a Beijing key on a Singapore host fails with `InvalidApiKey`.
+- `python3` (3.9+). Stdlib-only script — nothing to `pip install`.
+- ImageMagick, optionally — output is PNG but 8-bit RGB with no alpha, so cut-outs need one keying step afterwards.
+
+Renders are billed per image at a tier the script prints and logs (`qima_output_1k`, `qima_output_2k`, …); per-image prices aren't published in the docs, so check the console for the current rate. Failed calls are free, and the script validates model, size and `--n` locally before spending a request. Every render is appended to a gitignored `.qwenimage.jsonl` at your repo root with the full prompt and parameters.
+
+Source: `plugins/qwen-image/skills/qwen-image/`. Includes `evals/` with the test prompts and assertions used to validate it.
 
 ## Adding a new skill
 

@@ -1,0 +1,53 @@
+{
+  "skill_name": "qwen-image",
+  "evals": [
+    {
+      "id": 0,
+      "name": "hero-image-landscape-routing",
+      "prompt": "im putting together a landing page for a japanese tea subscription thing im working on. can you generate me a hero image with qwen? save it into ./assets/ . needs to feel calm and premium, and leave the left side fairly empty because the headline goes there",
+      "expected_output": "A landscape PNG in ./assets/, rendered through scripts/qwenimage.py with an explicit --size in a landscape ratio, from a prompt written to a file rather than passed inline.",
+      "files": [],
+      "assertions": [
+        "Wrote a PNG into ./assets/",
+        "Output is a valid PNG at least 1000px wide",
+        "Rendered through the bundled qwenimage.py script (log written)",
+        "Passed an explicit --size instead of letting the model choose",
+        "Chose a landscape ratio, matching a hero with headline space",
+        "Prompt was written to a file rather than passed inline",
+        "Prompt is a fully specified brief of 60+ words"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "cjk-text-poster",
+      "prompt": "i need a small poster image with the japanese words 秋の味 actually printed on it, autumn colours, kind of a minimal japanese grocery ad look. use qwen for this one. drop it at ./posters/aki.png",
+      "expected_output": "A PNG at ./posters/aki.png produced by scripts/qwenimage.py using qwen-image-3.0-pro, with the exact string quoted in the prompt and prompt_extend disabled so the typography spec survives.",
+      "files": [],
+      "assertions": [
+        "Wrote a PNG at the exact requested path ./posters/aki.png",
+        "Rendered through the bundled qwenimage.py script (log written)",
+        "Used qwen-image-3.0-pro, the family's strongest text renderer",
+        "Quoted the exact string 秋の味 in the prompt",
+        "Disabled prompt_extend so the typography spec survives",
+        "Prompt is a fully specified brief of 60+ words"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "edit-preserves-input-size",
+      "prompt": "the product shot at ./input/product-shot.png has a wooden table background, i want it on a plain white seamless studio backdrop instead. everything else about the shot should stay exactly the same. use qwen image for it, save as ./input/product-shot-white.png",
+      "expected_output": "A PNG at ./input/product-shot-white.png produced by the edit command with --size matching the 1664x928 input, so the framing is preserved rather than the model upscaling and recomposing.",
+      "files": [
+        "fixtures/product-shot.png"
+      ],
+      "assertions": [
+        "Wrote a PNG at the exact requested path ./input/product-shot-white.png",
+        "Rendered through the bundled qwenimage.py script (log written)",
+        "Used the edit command rather than rerolling with generate",
+        "Passed the existing file as an input image",
+        "Passed an explicit --size instead of letting the model choose",
+        "Output keeps the input's exact 1664x928 framing (no silent upscale)"
+      ]
+    }
+  ]
+}

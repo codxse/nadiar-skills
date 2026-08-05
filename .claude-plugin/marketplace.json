@@ -25,6 +25,16 @@
       "category": "development",
       "source": "./plugins/nano-banana",
       "keywords": ["nano-banana", "gemini", "image-generation", "images", "assets", "google"]
+    },
+    {
+      "name": "qwen-image",
+      "description": "Generate and edit images with Alibaba Cloud Model Studio's Qwen-Image models (qwen-image-3.0-pro, qwen-image-max, qwen-image-edit-max) and write them straight into the workspace — an alternative to nano-banana, and the better choice when the image needs legible text in it.",
+      "author": {
+        "name": "Nadiar"
+      },
+      "category": "development",
+      "source": "./plugins/qwen-image",
+      "keywords": ["qwen", "qwen-image", "model-studio", "dashscope", "alibaba", "image-generation", "images", "assets"]
     }
   ]
 }

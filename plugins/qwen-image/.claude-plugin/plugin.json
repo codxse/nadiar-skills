@@ -1,0 +1,11 @@
+{
+  "name": "qwen-image",
+  "description": "Generate and edit images with Alibaba Cloud Model Studio's Qwen-Image models (qwen-image-3.0-pro, qwen-image-max, qwen-image-edit-max) and write them straight into the workspace — an alternative to nano-banana, and the better choice when the image needs legible text in it.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Nadiar"
+  },
+  "license": "MIT",
+  "keywords": ["qwen", "qwen-image", "model-studio", "dashscope", "alibaba", "image-generation", "images", "assets"],
+  "skills": ["./skills/qwen-image"]
+}
