@@ -14,6 +14,7 @@ Requires [Claude Code](https://claude.com/code).
 /plugin install nano-banana@nadiar-skills
 /plugin install qwen-image@nadiar-skills
 /plugin install gtm@nadiar-skills
+/plugin install gsc@nadiar-skills
 ```
 
 **From a shell** (equivalent, e.g. for scripting/dotfiles):
@@ -126,6 +127,21 @@ The point is the safety boundary: every mutating call is logged to a gitignored 
 - Optionally `GTM_ACCOUNT_ID`/`GTM_CONTAINER_ID`/`GTM_WORKSPACE_ID` exported for the property used most, so `--account`/`--container`/`--workspace` never need to be typed (or hardcoded) into a command.
 
 Source: `plugins/gtm/skills/gtm/`.
+
+### `gsc`
+
+Read [Google Search Console](https://search.google.com/search-console) data — search performance (clicks, impressions, CTR, position by query/page/date/country/device), per-URL indexing status — and manage sitemaps, via the Search Console API v1. Triggers on any question about search traffic, rankings, top queries/pages, why a URL isn't indexed, or resubmitting a sitemap after publishing content.
+
+Narrower than `gtm` by design: search performance and indexing status are read-only, and the only writes are `sitemaps submit`/`delete` — this skill doesn't register or remove properties from the account. Every sitemap change is logged to a gitignored `.gsc-audit.jsonl` at the repo root.
+
+**Requirements:**
+
+- `GTM_SERVICE_ACCOUNT_KEY` exported — reuses the exact same service account key as `gtm`. That service account must additionally be added as a user inside Search Console itself (Settings → Users and permissions, **Full** permission — Restricted can't submit/delete sitemaps) — a GCP IAM role alone grants nothing there, same as GTM.
+- `pip install google-auth` once — already installed if `gtm` is set up.
+- Search Console API enabled on the service account's GCP project.
+- Optionally `GSC_SITE_URL` exported for the property used most, so `--site` never needs to be typed (or hardcoded) into a command. Note a domain property (`sc-domain:example.com`) and a URL-prefix property (`https://example.com/`) are different properties, not interchangeable.
+
+Source: `plugins/gsc/skills/gsc/`.
 
 ## Adding a new skill
 

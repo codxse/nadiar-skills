@@ -45,6 +45,16 @@
       "category": "development",
       "source": "./plugins/gtm",
       "keywords": ["gtm", "google-tag-manager", "tag-manager", "tags", "triggers", "variables", "google", "analytics"]
+    },
+    {
+      "name": "gsc",
+      "description": "Read Google Search Console data — search performance, per-URL indexing status — and manage sitemaps, via the Search Console API v1.",
+      "author": {
+        "name": "Nadiar"
+      },
+      "category": "development",
+      "source": "./plugins/gsc",
+      "keywords": ["gsc", "google-search-console", "search-console", "seo", "sitemaps", "indexing", "google"]
     }
   ]
 }

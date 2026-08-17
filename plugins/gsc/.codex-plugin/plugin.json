@@ -1,0 +1,11 @@
+{
+  "name": "gsc",
+  "version": "1.0.0",
+  "description": "Read Google Search Console data — search performance, per-URL indexing status — and manage sitemaps, via the Search Console API v1.",
+  "author": {
+    "name": "Nadiar"
+  },
+  "license": "MIT",
+  "keywords": ["gsc", "google-search-console", "search-console", "seo", "sitemaps", "indexing", "google"],
+  "skills": "./skills/"
+}

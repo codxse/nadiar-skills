@@ -2,6 +2,19 @@
 
 Notable changes to plugins in this marketplace, grouped by plugin. Versions follow [Semantic Versioning](https://semver.org/) and match each plugin's `.claude-plugin/plugin.json` / `.codex-plugin/plugin.json` `version` field.
 
+## gsc
+
+### 1.0.0 — 2026-08-17
+
+- Initial release: read Google Search Console data — search performance (`analytics query`), per-URL indexing status (`inspect url`) — and manage sitemaps (`sitemaps list/get/submit/delete`), via the Search Console API v1
+- `scripts/gsc.py` — stdlib Python except for `google-auth`, reusing the exact same service-account auth pattern (and the same `GTM_SERVICE_ACCOUNT_KEY`) as `gtm`, against the single `webmasters` OAuth scope (the readonly scope can't submit/delete sitemaps, so this skill's "read + sitemap management" scope needs the full one regardless)
+- Deliberately narrower than `gtm`: no `sites.add`/`sites.delete` — this skill never registers or removes properties from the account, only reads/writes within properties already there
+- Path/method table and request/response shapes built from the live discovery document (`googleapis.com/discovery/v1/apis/searchconsole/v1/rest`) and verified against the real `sc-domain:goldypaper.com` property: `sites.list`, `searchanalytics.query` (empty-range response has no `rows` key at all), and `urlInspection.index.inspect` (`coverageState: "URL is unknown to Google"` is the normal shape for a never-crawled URL, not an error) all confirmed live
+- Caught the discovery doc's one stale entry before it shipped: `urlTestingTools.mobileFriendlyTest.run` is still listed but the live endpoint 400s on every URL including a known-good one (`google.com`) — Google retired the tool without pruning the schema. This skill does not wrap it; `reference/api.md` documents the finding
+- Confirmed `type` (not the deprecated `searchType`) is the correct search-type filter field per Google's own current reference docs
+- Every `sitemaps submit`/`delete` appended to a gitignored `.gsc-audit.jsonl` at the repo root
+- `SKILL.md` treats empty results (no data in range, no sitemaps, unindexed URL) as real findings to report, not failures to retry — and calls out that domain (`sc-domain:`) and URL-prefix (`https://`) forms of the same site are different properties that 404 identically when confused
+
 ## gtm
 
 ### 1.0.0 — 2026-08-17

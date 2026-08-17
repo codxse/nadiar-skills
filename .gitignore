@@ -3,4 +3,5 @@
 .ruby-lsp/
 .nanobanana.jsonl
 .gtm-audit.jsonl
+.gsc-audit.jsonl
 __pycache__/
