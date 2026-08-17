@@ -2,6 +2,20 @@
 
 Notable changes to plugins in this marketplace, grouped by plugin. Versions follow [Semantic Versioning](https://semver.org/) and match each plugin's `.claude-plugin/plugin.json` / `.codex-plugin/plugin.json` `version` field.
 
+## ga4
+
+### 1.0.0 — 2026-08-17
+
+- Initial release: query Google Analytics 4 reporting data — account/property discovery, custom dimensions/metrics, Google Ads links, property annotations, and four report tools (`run_report`, `run_realtime_report`, `run_funnel_report`, `run_conversions_report`) — via Google's own official `analytics-mcp` server (PyPI: `analytics-mcp`), not a custom script like `gtm`/`gsc`
+- Bundled as a real MCP server declaration (`plugins/ga4/.mcp.json`), not wrapped — the first plugin in this marketplace to ship an MCP server instead of a stdlib script. Auth env vars are deliberately named `GA_SERVICE_ACCOUNT_KEY`/`GA_PROJECT_ID` rather than `GOOGLE_APPLICATION_CREDENTIALS`/`GOOGLE_PROJECT_ID` (what `analytics-mcp` actually reads) — those generic names are also load-bearing for `gcloud`, Terraform/OpenTofu, and other tools on the same machine, so `.mcp.json` remaps the scoped names to the generic ones only inside the `analytics-mcp` subprocess's own environment
+- Verified end-to-end by speaking the real MCP stdio protocol (newline-delimited JSON-RPC, no `Content-Length` framing) to `pipx run analytics-mcp` directly: `initialize`, the live `tools/list` (9 tools — the upstream README documents only 7, missing `list_property_annotations` and `run_conversions_report`), and a live `run_report` call against the real `goldypaper.com` property
+- Confirmed live: pointing `GOOGLE_APPLICATION_CREDENTIALS` straight at a service-account key file works as ADC and needs no `gcloud` login — simpler than either of the two `gcloud`-based flows the upstream README documents, and doesn't overwrite the shared `~/.config/gcloud/application_default_credentials.json` the way both of those do
+- Caught a live trap in the alternative OAuth-desktop-client auth flow before it shipped as guidance: an unverified OAuth client's consent screen rejects any Google account not on its Test users list with `Error 403: access_denied`, even with a correct `--client-id-file`/`--scopes` invocation — documented in `reference/api.md` as a reason to default to the service-account path instead
+- Confirmed the Data API's field names in this MCP server are snake_case (protobuf-derived), not the camelCase the public REST reference docs show — copying a camelCase example verbatim silently mismatches the schema rather than erroring
+- Confirmed `run_report`'s empty-result shape always includes a `rows: []` key (never omits it), the opposite convention from `gsc`'s `analytics query` — both documented as legitimate "no data yet" findings, not failures
+- `reference/api.md` — auth flow (all three ADC options, ranked), API enablement, full 9-tool catalog, `date_ranges`/filter-expression/`order_bys` shapes, `run_conversions_report`'s fixed dimension/metric allowlist, `run_funnel_report`'s step shape, and the live empty-result example
+- No audit log — every tool in this skill is read-only, unlike `gtm` (publish) and `gsc` (sitemap submit/delete)
+
 ## gsc
 
 ### 1.0.0 — 2026-08-17

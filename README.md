@@ -15,6 +15,7 @@ Requires [Claude Code](https://claude.com/code).
 /plugin install qwen-image@nadiar-skills
 /plugin install gtm@nadiar-skills
 /plugin install gsc@nadiar-skills
+/plugin install ga4@nadiar-skills
 ```
 
 **From a shell** (equivalent, e.g. for scripting/dotfiles):
@@ -142,6 +143,21 @@ Narrower than `gtm` by design: search performance and indexing status are read-o
 - Optionally `GSC_SITE_URL` exported for the property used most, so `--site` never needs to be typed (or hardcoded) into a command. Note a domain property (`sc-domain:example.com`) and a URL-prefix property (`https://example.com/`) are different properties, not interchangeable.
 
 Source: `plugins/gsc/skills/gsc/`.
+
+### `ga4`
+
+Query [Google Analytics 4](https://analytics.google.com) reporting data — traffic, sessions, events, conversions, funnels, realtime activity, custom dimensions/metrics — via Google's own official [`analytics-mcp`](https://github.com/googleanalytics/google-analytics-mcp) server. Triggers on any question about site traffic, users, top pages/events, conversion or ROAS numbers, a funnel, or what's happening on the site right now.
+
+Structurally different from `gtm`/`gsc`: there's no custom script here. `analytics-mcp` is a real MCP server, bundled via `plugins/ga4/.mcp.json` — once the plugin is enabled its 9 tools (`get_account_summaries`, `run_report`, `run_realtime_report`, `run_funnel_report`, `run_conversions_report`, and others) are just available directly. Every tool is read-only, so there's no audit log and no confirmation gate, unlike `gtm`'s publish step or `gsc`'s sitemap writes.
+
+**Requirements:**
+
+- `GA_SERVICE_ACCOUNT_KEY` and `GA_PROJECT_ID` exported — reuses the same service account key as `gtm`/`gsc`, plus the GCP project ID for API quota. Deliberately *not* named `GOOGLE_APPLICATION_CREDENTIALS`/`GOOGLE_PROJECT_ID` (what `analytics-mcp` itself needs) — those generic names are also read by `gcloud`, Terraform/OpenTofu, and other tools, so `.mcp.json` remaps the scoped names to the generic ones only for the `analytics-mcp` subprocess. Same zsh caveat as the other skills — **`~/.zshenv`, not `~/.zshrc`**.
+- That service account must additionally be added inside the GA4 property itself (Admin → Property Access Management, **Viewer** or above) — a GCP IAM role alone grants nothing there, same as `gtm`/`gsc`.
+- Google Analytics **Admin** API and **Data** API enabled on the service account's GCP project.
+- `pipx` installed — `analytics-mcp` runs via `pipx run analytics-mcp`, cached after the first launch.
+
+Source: `plugins/ga4/skills/ga4/`.
 
 ## Adding a new skill
 

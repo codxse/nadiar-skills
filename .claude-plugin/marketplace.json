@@ -55,6 +55,16 @@
       "category": "development",
       "source": "./plugins/gsc",
       "keywords": ["gsc", "google-search-console", "search-console", "seo", "sitemaps", "indexing", "google"]
+    },
+    {
+      "name": "ga4",
+      "description": "Query Google Analytics 4 reporting data — traffic, events, conversions, funnels, realtime — via the official analytics-mcp server, against a service-account-scoped property.",
+      "author": {
+        "name": "Nadiar"
+      },
+      "category": "development",
+      "source": "./plugins/ga4",
+      "keywords": ["ga4", "google-analytics", "analytics", "reporting", "mcp", "google"]
     }
   ]
 }

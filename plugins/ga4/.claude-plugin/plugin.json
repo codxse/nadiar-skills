@@ -1,0 +1,11 @@
+{
+  "name": "ga4",
+  "description": "Query Google Analytics 4 reporting data — traffic, events, conversions, funnels, realtime — via the official analytics-mcp server, against a service-account-scoped property.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Nadiar"
+  },
+  "license": "MIT",
+  "keywords": ["ga4", "google-analytics", "analytics", "reporting", "mcp", "google"],
+  "skills": ["./skills/ga4"]
+}
