@@ -13,6 +13,7 @@ Requires [Claude Code](https://claude.com/code).
 /plugin install superglue@nadiar-skills
 /plugin install nano-banana@nadiar-skills
 /plugin install qwen-image@nadiar-skills
+/plugin install gtm@nadiar-skills
 ```
 
 **From a shell** (equivalent, e.g. for scripting/dotfiles):
@@ -110,6 +111,21 @@ Triggers on Qwen / Model Studio / DashScope / Aliyun by name, on "try that again
 Renders are billed per image at a tier the script prints and logs (`qima_output_1k`, `qima_output_2k`, …); per-image prices aren't published in the docs, so check the console for the current rate. Failed calls are free, and the script validates model, size and `--n` locally before spending a request. Every render is appended to a gitignored `.qwenimage.jsonl` at your repo root with the full prompt and parameters.
 
 Source: `plugins/qwen-image/skills/qwen-image/`. Includes `evals/` with the test prompts and assertions used to validate it.
+
+### `gtm`
+
+Read and write [Google Tag Manager](https://tagmanager.google.com) configuration via the Tag Manager API v2 — accounts, containers, workspaces, tags, triggers, variables — and publish container versions. Triggers on any request to inspect, audit, create, or edit a GTM tag/trigger/variable, check what changed in a workspace, or publish a container.
+
+The point is the safety boundary: every mutating call is logged to a gitignored `.gtm-audit.jsonl` at the repo root, and creating a container version never auto-publishes — the skill always shows what's about to ship and waits for an explicit yes before the one command (`version publish`) that actually goes live.
+
+**Requirements:**
+
+- `GTM_SERVICE_ACCOUNT_KEY` exported, pointing at a service account JSON key from Google Cloud Console. The same service account must be added as a user inside the GTM container itself (Admin → User Management, **Publish** permission) — a GCP IAM role alone grants nothing there.
+- `pip install google-auth` once — used only to RS256-sign the service account's JWT; every actual API call goes over stdlib `urllib`.
+- Tag Manager API enabled on the service account's GCP project.
+- Optionally `GTM_ACCOUNT_ID`/`GTM_CONTAINER_ID`/`GTM_WORKSPACE_ID` exported for the property used most, so `--account`/`--container`/`--workspace` never need to be typed (or hardcoded) into a command.
+
+Source: `plugins/gtm/skills/gtm/`.
 
 ## Adding a new skill
 

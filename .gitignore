@@ -2,4 +2,5 @@
 .claude/scheduled_tasks.lock
 .ruby-lsp/
 .nanobanana.jsonl
+.gtm-audit.jsonl
 __pycache__/

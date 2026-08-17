@@ -35,6 +35,16 @@
       "category": "development",
       "source": "./plugins/qwen-image",
       "keywords": ["qwen", "qwen-image", "model-studio", "dashscope", "alibaba", "image-generation", "images", "assets"]
+    },
+    {
+      "name": "gtm",
+      "description": "Read and write Google Tag Manager configuration — accounts, containers, workspaces, tags, triggers, variables — and publish container versions, via the Tag Manager API v2.",
+      "author": {
+        "name": "Nadiar"
+      },
+      "category": "development",
+      "source": "./plugins/gtm",
+      "keywords": ["gtm", "google-tag-manager", "tag-manager", "tags", "triggers", "variables", "google", "analytics"]
     }
   ]
 }

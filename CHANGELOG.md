@@ -2,6 +2,18 @@
 
 Notable changes to plugins in this marketplace, grouped by plugin. Versions follow [Semantic Versioning](https://semver.org/) and match each plugin's `.claude-plugin/plugin.json` / `.codex-plugin/plugin.json` `version` field.
 
+## gtm
+
+### 1.0.0 — 2026-08-17
+
+- Initial release: read/write Google Tag Manager configuration via the Tag Manager API v2 — accounts, containers, workspaces, tags, triggers, variables — plus container version create/publish
+- `scripts/gtm.py` — stdlib Python except for `google-auth`, used only to RS256-sign the service account's JWT-bearer assertion; every Tag Manager API call itself goes over stdlib `urllib`. Verified against Google's real token endpoint (a syntactically-valid signed JWT from a throwaway key gets `invalid_grant: account not found`, not a signature error, confirming the request shape) and against a live container end to end (`containers get`, `workspaces status`, `tags/triggers/variables list`)
+- `--account`/`--container`/`--workspace` fall back to `GTM_ACCOUNT_ID`/`GTM_CONTAINER_ID`/`GTM_WORKSPACE_ID` when set, staying required flags otherwise — so a fixed property never needs its ID typed (or hardcoded) into a command; tag/trigger/variable/version IDs stay always-explicit since they're per-entity
+- Path/method table built from the live discovery document (`googleapis.com/discovery/v1/apis/tagmanager/v2/rest`) rather than the HTML docs, including the `tagmanager.googleapis.com` (not `www.googleapis.com`) base URL and the `:create_version`/`:publish` colon-verb path shapes
+- `reference/api.md` — auth flow, full path/method table, Tag/Trigger/Variable/Parameter shapes, a caveat that GTM publishes no enum of valid `type` strings (documents the reliable workaround: `get` an existing entity of the same kind and use it as the template), error-code meanings
+- Every create/update/delete/publish appended to a gitignored `.gtm-audit.jsonl` at the repo root
+- `SKILL.md` treats `version publish` as the one irreversible-in-practice action: workflow requires showing `workspaces status` and the created version before ever calling publish, and forbids chaining create → publish without an explicit per-publish confirmation
+
 ## qwen-image
 
 ### 1.0.0 — 2026-08-06
