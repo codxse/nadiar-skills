@@ -58,7 +58,7 @@
     },
     {
       "name": "ga4",
-      "description": "Query Google Analytics 4 reporting data — traffic, events, conversions, funnels, realtime — via the official analytics-mcp server, against a service-account-scoped property.",
+      "description": "Query Google Analytics 4 reporting data via the official analytics-mcp server, and manage property configuration (custom dimensions/metrics, key events, data streams) via the Admin API — against a service-account-scoped property.",
       "author": {
         "name": "Nadiar"
       },

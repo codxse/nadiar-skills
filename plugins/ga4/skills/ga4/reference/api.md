@@ -3,70 +3,13 @@
 Ground truth for this doc: the live `tools/list` and `tools/call` responses
 from `pipx run analytics-mcp` (v1.0.0, MCP protocol `2024-11-05`) against the
 real `goldypaper.com` GA4 property, not just the upstream README — the
-README undercounts the tool set (lists 7, server exposes 9) and doesn't
-mention the OAuth consent-screen trap below.
+README undercounts the tool set (lists 7, server exposes 9).
 
-## Auth
-
-`analytics-mcp` authenticates via Application Default Credentials (ADC),
-resolved through `GOOGLE_APPLICATION_CREDENTIALS`. Three ways to produce
-that, in order of preference for this setup:
-
-1. **Point `GOOGLE_APPLICATION_CREDENTIALS` straight at a service account
-   key file.** Not in the upstream README (it only documents the two
-   `gcloud`-based flows below), but standard ADC behavior — `google-auth`
-   resolves a raw service-account JSON the same way `gcloud`-generated ADC
-   files resolve. No `gcloud` login, no browser, doesn't touch
-   `~/.config/gcloud/application_default_credentials.json`. **This is what
-   this skill uses**, via `.mcp.json`'s env remap (see `SKILL.md`).
-
-2. **OAuth Desktop/Web client + interactive login:**
-   ```
-   gcloud auth application-default login \
-     --scopes https://www.googleapis.com/auth/analytics.readonly,https://www.googleapis.com/auth/cloud-platform \
-     --client-id-file=YOUR_CLIENT_JSON_FILE
-   ```
-   **Live trap hit while building this skill:** if the OAuth client's
-   consent screen is still in "Testing" publishing status (the default for
-   a newly created client), any Google account not explicitly added as a
-   **Test user** gets `Error 403: access_denied` — "has not completed the
-   Google verification process." Fix is either adding the signing-in
-   account under OAuth consent screen → Test users, or publishing the app.
-   This flow authenticates as a human, not the service account — only
-   reach for it if that distinction actually matters.
-
-3. **Service-account impersonation:**
-   ```
-   gcloud auth application-default login \
-     --impersonate-service-account=SERVICE_ACCOUNT_EMAIL \
-     --scopes=https://www.googleapis.com/auth/analytics.readonly,https://www.googleapis.com/auth/cloud-platform
-   ```
-   Requires the `gcloud`-authenticated human to already hold
-   `roles/iam.serviceAccountTokenCreator` on the service account, and (like
-   #2) overwrites the same shared ADC file. No real advantage over #1 for a
-   single fixed service account.
-
-Options 2 and 3 both write to the **same well-known path**
-(`~/.config/gcloud/application_default_credentials.json`) with no way to
-redirect the output — running either overwrites whatever was there, which on
-a shared machine may belong to something else. Option 1 never touches it.
-
-**Property-level access is separate from GCP IAM**, same as `gtm`/`gsc`: add
-the service account inside GA4 itself — Admin → Property Access Management
-→ Add users → the service account's email → **Viewer** (minimum; every tool
-below only reads). A GCP IAM role on the service account grants nothing
-inside GA4.
-
-## APIs to enable
-
-On the GCP project referenced by `GA_PROJECT_ID`:
-- `analyticsadmin.googleapis.com` (Google Analytics Admin API)
-- `analyticsdata.googleapis.com` (Google Analytics Data API)
-
-An unenabled API returns an explicit 403 on the first call. An empty
-`accountSummaries: []`-shaped response means the APIs *are* enabled but the
-identity has no property access yet (Property Access Management step
-skipped) — these are two different failure shapes, don't conflate them.
+**Setup and auth are covered once, in `SKILL.md` — not repeated here.**
+`analytics-mcp`'s own tool descriptions already carry most argument-shape
+docs live (visible in your tool list) — this file covers what those don't:
+transport/session-lifecycle mechanics, the empty-result convention, and a
+schema-free fallback reference for `scripts/mcp_client.py`.
 
 ## Tool catalog (live, 9 tools)
 
@@ -228,6 +171,115 @@ closing stdin (or letting a `printf ... | pipx run analytics-mcp` pipeline
 end) right after sending the request reads as a silent hang, not an error.
 Hold the pipe open, read the matching response by `id`, and only then close
 stdin — see `scripts/mcp_client.py`.
+
+## Admin API writes — `ga4_admin.py`
+
+Everything below is a separate concern from `analytics-mcp` above: the
+Analytics Admin API v1beta's write methods, called directly by
+`scripts/ga4_admin.py`, not exposed by any `analytics-mcp` tool. Ground
+truth is the live discovery document
+(`analyticsadmin.googleapis.com/$discovery/rest?version=v1beta`), cross-checked
+against a real create → patch → delete round trip on `goldypaper.com`.
+
+**Scope**: `https://www.googleapis.com/auth/analytics.edit` — confirmed
+live to cover both reads and writes through this API (no need to also
+request `analytics.readonly`). **Requires Editor or above** at the GA4
+property level (Admin → Property Access Management) — Viewer 403s on every
+`ga4_admin.py` call.
+
+**`properties.conversionEvents` is deprecated.** Google's own reference
+docs state outright: *"Deprecated: Use `CreateKeyEvent`, `DeleteKeyEvent`,
+`GetKeyEvent`, `ListKeyEvents`, and `UpdateKeyEvent` instead."*
+`ga4_admin.py` only ever calls `properties.keyEvents` — don't add a
+`conversionEvents` path even though the discovery doc still lists it as a
+live resource.
+
+**`properties.audiences` only exists in `v1alpha`**, not the `v1beta` every
+other resource here uses — left out of `ga4_admin.py` deliberately (a
+noticeably less stable API surface). Not implemented; ask before adding it
+if it's ever needed.
+
+### Resource → method → path
+
+| Resource | list | get | create | patch | archive/delete |
+|---|---|---|---|---|---|
+| `customDimensions` | `GET .../customDimensions` | `GET {name}` | `POST .../customDimensions` | `PATCH {name}?updateMask=...` | `POST {name}:archive` |
+| `customMetrics` | `GET .../customMetrics` | `GET {name}` | `POST .../customMetrics` | `PATCH {name}?updateMask=...` | `POST {name}:archive` |
+| `keyEvents` | `GET .../keyEvents` | `GET {name}` | `POST .../keyEvents` | `PATCH {name}?updateMask=...` | `DELETE {name}` |
+| `dataStreams` | `GET .../dataStreams` | `GET {name}` | `POST .../dataStreams` | `PATCH {name}?updateMask=...` | `DELETE {name}` |
+
+`updateMask` is a comma-separated list of the exact camelCase body field
+names being changed (e.g. `displayName,description`) — **confirmed
+live**: sending only the changed fields in both the mask and the body
+patches cleanly, no need to resend the full resource.
+
+### `customDimensions` fields
+
+- `displayName` (required, ≤82 chars), `parameterName` (required, immutable
+  — the tagging parameter name), `scope` (required, immutable, enum:
+  `EVENT` | `USER` | `ITEM`), `description` (optional, ≤150 chars),
+  `disallowAdsPersonalization` (optional bool).
+- Patchable: `displayName`, `description`, `disallowAdsPersonalization`.
+  `parameterName`/`scope` are immutable after creation.
+
+### `customMetrics` fields
+
+- `displayName` (required), `parameterName` (required, immutable), `scope`
+  (required, immutable — the enum only has one real value, `EVENT`),
+  `measurementUnit` (required, enum: `STANDARD` | `CURRENCY` | `FEET` |
+  `METERS` | `KILOMETERS` | `MILES` | `MILLISECONDS` | `SECONDS` |
+  `MINUTES` | `HOURS`), `description` (optional), `restrictedMetricType`
+  (optional array, enum: `COST_DATA` | `REVENUE_DATA` — required if
+  `measurementUnit` is `CURRENCY`).
+- Patchable: `displayName`, `description`, `measurementUnit`.
+
+### `keyEvents` fields
+
+- `eventName` (required, immutable — the raw GA4 event name, e.g.
+  `purchase`, not a display label), `countingMethod` (required, enum:
+  `ONCE_PER_EVENT` | `ONCE_PER_SESSION`), `defaultValue` (optional object:
+  `{"currencyCode": "USD", "numericValue": 10.0}` — backfills a value for
+  occurrences that don't set one themselves).
+- Patchable: `countingMethod`, `defaultValue`.
+- `custom: true` in the response means it's a property-specific key event a
+  human or this script created; property creation auto-generates some
+  (`purchase`, and lead-gen ones like `close_convert_lead`/`qualify_lead`
+  when "Generate leads" is picked as a business objective during setup —
+  seen live on `goldypaper.com`). `deletable: false` on a response means
+  don't bother calling `delete` — it'll reject.
+
+### `dataStreams` fields
+
+- `type` (required, immutable, enum: `WEB_DATA_STREAM` |
+  `ANDROID_APP_DATA_STREAM` | `IOS_APP_DATA_STREAM`), `displayName`
+  (required for web streams). Exactly one of `webStreamData`
+  (`defaultUri`), `androidAppStreamData` (`packageName`), `iosAppStreamData`
+  (`bundleId`) — must match `type`.
+- `webStreamData.measurementId` (`G-XXXXXXX`) is **output only** — it's
+  assigned by Google on create, never supplied.
+- Patchable: `displayName`, `webStreamData.defaultUri` (nested field path
+  in the mask, confirmed by schema — not live-tested).
+
+### Live-verified round trip
+
+`events create` → `events patch` → `events delete` against the real
+`goldypaper.com` property, full cycle, cleaned up after itself:
+```
+$ ga4_admin.py events create --property 549905304 --event-name ga4_skill_verify_test --counting-method ONCE_PER_EVENT
+{"name": "properties/549905304/keyEvents/15447928506", "eventName": "ga4_skill_verify_test", "deletable": true, "custom": true, "countingMethod": "ONCE_PER_EVENT", ...}
+$ ga4_admin.py events patch --name properties/549905304/keyEvents/15447928506 --counting-method ONCE_PER_SESSION
+{"countingMethod": "ONCE_PER_SESSION", ...}
+$ ga4_admin.py events delete --name properties/549905304/keyEvents/15447928506
+deleted properties/549905304/keyEvents/15447928506
+```
+`dimensions`/`metrics` create+archive and `streams` create+delete were
+**not** live-tested the same way — archiving a dimension/metric isn't
+confirmed side-effect-free against the property's slot quota the way
+deleting a key event is, and creating a real data stream assigns a real,
+visible Measurement ID. Field names for both come straight from the
+verified discovery-doc schema; a wrong field name 400s loudly rather than
+silently misbehaving, so the risk of an untested call is a clear error, not
+silent corruption.
 
 ## If the plugin's MCP tools aren't in your tool list
 

@@ -24,6 +24,10 @@ import sys
 
 def call(tool, args):
     env = dict(os.environ)
+    missing = [v for v in ("GA_SERVICE_ACCOUNT_KEY", "GA_PROJECT_ID") if v not in env]
+    if missing:
+        print(f"error: {' and '.join(missing)} not set — see SKILL.md Setup", file=sys.stderr)
+        sys.exit(1)
     env["GOOGLE_APPLICATION_CREDENTIALS"] = env["GA_SERVICE_ACCOUNT_KEY"]
     env["GOOGLE_PROJECT_ID"] = env["GA_PROJECT_ID"]
     proc = subprocess.Popen(

@@ -6,39 +6,22 @@ the HTML docs — the discovery doc is what the API actually enforces.
 
 ## Auth
 
-Service-account JWT-bearer flow, no user consent screen:
-
-1. Build a JWT: `iss` = service account email, `scope` = the two scopes
-   below space-joined, `aud` = `https://oauth2.googleapis.com/token`, `iat`/`exp`
-   (1 hour). Sign RS256 with the private key from the JSON key file.
-2. POST it to the token endpoint as `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=<jwt>`.
-3. Use the returned `access_token` as `Authorization: Bearer <token>` on every
-   Tag Manager API call.
-
-Scopes in use: `tagmanager.edit.containers` (read/write config) and
-`tagmanager.publish` (create/publish versions). `google-auth`'s
-`google.auth.crypt.RSASigner` + `google.auth.jwt.encode` do the signing —
-verified against the real token endpoint (a syntactically-valid JWT signed
-with a throwaway key gets `invalid_grant: account not found` back, not a
-signature error, confirming the request shape is correct).
+Service-account JWT-bearer flow, no user consent screen — see `access_token()`
+in `gtm.py` for the exact request shape. Scopes in use:
+`tagmanager.edit.containers` (read/write config) and `tagmanager.publish`
+(create/publish versions). `google-auth`'s `google.auth.crypt.RSASigner` +
+`google.auth.jwt.encode` do the signing — verified against the real token
+endpoint (a syntactically-valid JWT signed with a throwaway key gets
+`invalid_grant: account not found` back, not a signature error, confirming
+the request shape is correct).
 
 ## Base URL and path shape
 
-`https://tagmanager.googleapis.com/tagmanager/v2/` + a resource path built
-from IDs — there is no separate `accountId=`/`containerId=` query-param
-style; the hierarchy is baked into the path itself:
-
-```
-accounts/{accountId}
-accounts/{accountId}/containers/{containerId}
-accounts/{accountId}/containers/{containerId}/workspaces/{workspaceId}
-accounts/{accountId}/containers/{containerId}/workspaces/{workspaceId}/tags/{tagId}
-accounts/{accountId}/containers/{containerId}/workspaces/{workspaceId}/triggers/{triggerId}
-accounts/{accountId}/containers/{containerId}/workspaces/{workspaceId}/variables/{variableId}
-accounts/{accountId}/containers/{containerId}/versions/{versionId}
-```
-
-Custom "verb" methods append a colon directly to the resource path, no slash:
+`https://tagmanager.googleapis.com/tagmanager/v2/` (not the commonly-guessed
+`www.googleapis.com`) + a resource path built from IDs — there is no separate
+`accountId=`/`containerId=` query-param style; the hierarchy is baked into
+the path itself (see the method table below for the full shape). Custom
+"verb" methods append a colon directly to the resource path, no slash:
 `.../workspaces/{id}:create_version`, `.../workspaces/{id}/status` (this one's
 an actual sub-path, not a colon verb), `.../versions/{id}:publish`.
 

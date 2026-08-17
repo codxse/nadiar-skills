@@ -4,6 +4,18 @@ Notable changes to plugins in this marketplace, grouped by plugin. Versions foll
 
 ## ga4
 
+### 1.1.0 — 2026-08-17
+
+- Added GA4 property configuration writes — custom dimensions, custom metrics, key events, data streams — via `scripts/ga4_admin.py` against the Analytics Admin API v1beta directly, since `analytics-mcp` (the reporting path) has no write tool of any kind and requests only the `analytics.readonly` scope in its own source code regardless of what role the service account holds
+- Caught before it shipped: `properties.conversionEvents` (the older resource name) is deprecated in Google's own reference docs — *"Deprecated: Use CreateKeyEvent, DeleteKeyEvent, GetKeyEvent, ListKeyEvents, and UpdateKeyEvent instead"* — while the discovery document still lists it as a live, callable resource. `ga4_admin.py` only ever calls `keyEvents`
+- `properties.audiences` only exists in Admin API `v1alpha`, not the `v1beta` every other resource here uses — deliberately left out of `ga4_admin.py` rather than building against a noticeably less stable surface
+- Verified live end-to-end against the real `goldypaper.com` property: `analytics.edit` scope alone covers both reads and writes (no need to also request `readonly`); a real `events create` → `events patch` → `events delete` round trip, cleanly self-cleaning; `updateMask` accepts exactly the camelCase body field names being changed, patching only those fields correctly
+- Discovered live (not a bug in the request): the property already had three auto-generated key events from setup — `purchase`, and `close_convert_lead`/`qualify_lead` from GA4 auto-generating lead-gen key events when "Generate leads" was picked as a business objective during account creation
+- Deliberately not live-tested: `dimensions`/`metrics` create+archive (archiving isn't confirmed side-effect-free against a property's limited custom-dimension/metric slot quota) and `streams create` (assigns a real, visible Measurement ID on a production property) — field names for both come from the verified discovery-doc schema, and a wrong field name 400s loudly rather than misbehaving silently, so the risk profile of shipping them unexercised is a clear error, not silent corruption
+- `SKILL.md` now documents the same discover-before-mutate, confirm-before-mutate discipline as `gtm`/`gsc` for `ga4_admin.py` — no draft/publish staging step like `gtm`, every call takes effect immediately on the real property
+- Every `ga4_admin.py` create/patch/archive/delete appended to a gitignored `.ga4-audit.jsonl` at the repo root
+- Reviewed by a fresh Fable-model pass for efficiency/compactness before shipping: recommended against genericizing the 4-resource CRUD (create/patch differ enough per resource — typed enum flags via argparse `choices` — that a factory would trade real code size for readability, unlike `gtm.py`'s factory over tags/triggers/variables, where all 5 verbs are genuinely uniform); did hoist the `measurementUnit`/`countingMethod` choice-lists to module constants (`MEASUREMENT_UNITS`, `COUNTING_METHODS`) — they were duplicated verbatim between `create`/`patch` and were a real drift hazard; caught two silent-failure bugs in passing and fixed both — `events create`/`patch` now errors instead of silently dropping `defaultValue` when only one of `--currency-code`/`--numeric-value` is given, and `dimensions patch` now errors instead of silently preferring `--disallow-ads-personalization` when both ads-personalization flags are passed; `mcp_client.py` now gives a real error message instead of a bare `KeyError` when `GA_SERVICE_ACCOUNT_KEY`/`GA_PROJECT_ID` are unset; trimmed `reference/api.md`'s self-justifying preamble and de-duplicated the keyEvents-deprecation explanation in `SKILL.md` to a single pointer
+
 ### 1.0.1 — 2026-08-17
 
 - Fixed via a blind zero-context subagent smoke test (a real natural-language traffic question, no mention of the skill, tools, or that it was a test) run immediately after 1.0.0 shipped:
@@ -39,6 +51,13 @@ Notable changes to plugins in this marketplace, grouped by plugin. Versions foll
 - `SKILL.md` treats empty results (no data in range, no sitemaps, unindexed URL) as real findings to report, not failures to retry — and calls out that domain (`sc-domain:`) and URL-prefix (`https://`) forms of the same site are different properties that 404 identically when confused
 
 ## gtm
+
+### 1.0.1 — 2026-08-17
+
+- Reviewed by a fresh Fable-model pass for efficiency/compactness (the same review given to `ga4`): verdict was that `gtm.py` is already the best-factored script in this marketplace — confirmed the `entity_handlers(kind)` factory over tags/triggers/variables is correctly scoped (uniform across all three verbs and kinds, no special-casing) and that `accounts`/`containers`/`workspaces` are correctly left un-factored, since their verb sets genuinely diverge (list-only, list/get, list/get/status) — no script restructuring recommended
+- Trimmed real doc restatement: `SKILL.md` stated the `GTM_ACCOUNT_ID`/`GTM_CONTAINER_ID`/`GTM_WORKSPACE_ID` env-var fallback three times (Setup, "Finding IDs", Commands preamble) — now stated once, plus the one genuinely distinct rule (never hardcode an ID inline); `reference/api.md`'s path-hierarchy list was fully re-derivable from the method table ten lines below it — cut, keeping only the three facts that aren't re-derivable (the non-obvious `tagmanager.googleapis.com` base URL, the no-query-param-style note, the colon-verb-vs-`/status` distinction); the Auth section's step-by-step JWT walkthrough compressed to a pointer at `access_token()` in the code, keeping the one thing not already in the code — the live verification note that a throwaway-key JWT gets `invalid_grant`, not a signature error
+- Two small drift fixes the review caught in passing: `gtm.py`'s 404 error hint now carries the same "403 and 404 look the same here" nuance `reference/api.md` already had (the two had quietly drifted apart); `update`'s `--body-file` flag now has the same help text `create`'s does
+- Left alone deliberately: the publish-confirmation and never-guess-`type`-strings language (intentionally dense, not bloat) and a `scope(args)`-helper suggestion for `record()`'s repeated context dict — the review's own call was "lean leave," since three similar lines is exactly what this repo's conventions say to tolerate over a premature abstraction
 
 ### 1.0.0 — 2026-08-17
 

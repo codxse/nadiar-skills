@@ -31,12 +31,9 @@ every actual API call still goes over plain `urllib`.
 
 ## Finding IDs
 
-`--account`/`--container`/`--workspace` fall back to `GTM_ACCOUNT_ID` /
-`GTM_CONTAINER_ID` / `GTM_WORKSPACE_ID` when those env vars are set — pass
-the flag only to override, or to work against a different property for one
-call. Never hardcode an ID into a command when the env var covers it; if a
-task needs a property that has no env var yet, ask the user to export one
-rather than typing the raw ID inline.
+Never hardcode an ID into a command when the matching env var covers it
+(see Setup); if a task needs a property that has no env var yet, ask the
+user to export one rather than typing the raw ID inline.
 
 The fastest way to find an ID: open the container in the GTM UI, click into
 any workspace, and read the URL —
@@ -78,9 +75,7 @@ the confirmation as the safety boundary, not the API permission.
 
 ## Commands
 
-`--account`/`--container`/`--workspace` shown below are omittable once the
-matching env var is set (see Setup) — included here for completeness, not
-because every call needs them typed out.
+(flags below are omittable via env vars — see Setup)
 
 ```
 gtm.py accounts list

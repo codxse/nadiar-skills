@@ -104,7 +104,7 @@ def describe_http_error(error):
     hints = {
         401: "access token invalid or expired",
         403: "the service account lacks GTM permission on this container/account — check User Management in the GTM UI",
-        404: "account/container/workspace/entity ID is wrong, or the service account has no access to it",
+        404: "account/container/workspace/entity ID is wrong, or the service account has no access to it — 403 and 404 look the same for a resource you have zero access to, GTM doesn't leak existence",
         409: "fingerprint mismatch — the entity changed since you last read it; get it again before updating",
     }
     hint = hints.get(error.code, "")
@@ -315,7 +315,7 @@ def build_parser():
         create.add_argument("--body-file", required=True, help=f"JSON body for the {singular} (see reference/api.md)")
         update = verbs.add_parser("update")
         add_ids(update, "account", "container", "workspace", singular)
-        update.add_argument("--body-file", required=True)
+        update.add_argument("--body-file", required=True, help=f"JSON body for the {singular} (see reference/api.md)")
         update.add_argument("--fingerprint", help="optimistic-concurrency check; omit to skip it")
         add_ids(verbs.add_parser("delete"), "account", "container", "workspace", singular)
 

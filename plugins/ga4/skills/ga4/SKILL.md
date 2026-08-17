@@ -1,22 +1,30 @@
 ---
 name: ga4
-description: Query Google Analytics 4 reporting data — traffic, sessions, events, conversions, funnels, realtime activity, custom dimensions/metrics, Google Ads links, annotations — via the official Google analytics-mcp server. Use when the user asks about site traffic, users, sessions, top pages/events, conversion/ROAS numbers, a funnel, or "what's happening right now" on the site. Also use when the user mentions Google Analytics, GA4, or analytics-mcp specifically. Do NOT use for Google Tag Manager (see the gtm skill, which configures *what* fires) or Google Search Console (see the gsc skill, which covers search rankings/indexing) — GA4 is the third, separate leg: it reports on traffic that already happened.
+description: Query Google Analytics 4 reporting data — traffic, sessions, events, conversions, funnels, realtime activity, custom dimensions/metrics, Google Ads links, annotations — via the official Google analytics-mcp server, and manage GA4 property configuration — custom dimensions/metrics, key events (conversions), data streams — via the Analytics Admin API. Use when the user asks about site traffic, users, sessions, top pages/events, conversion/ROAS numbers, a funnel, "what's happening right now" on the site, or wants to mark an event as a conversion, add a custom dimension/metric, or manage a data stream. Also use when the user mentions Google Analytics, GA4, or analytics-mcp specifically. Do NOT use for Google Tag Manager (see the gtm skill, which configures *what* fires) or Google Search Console (see the gsc skill, which covers search rankings/indexing) — GA4 is the third, separate leg: it reports on traffic that already happened, and configures how that traffic is measured.
 ---
 
-# GA4 — Google Analytics 4 via analytics-mcp
+# GA4 — Google Analytics 4 via analytics-mcp + the Admin API
 
-Unlike `gtm`/`gsc`, this skill has no custom script for its primary path.
-`analytics-mcp` is Google's own MCP server (PyPI: `analytics-mcp`), bundled
-as a real MCP server declaration at the **plugin root**
-(`plugins/ga4/.mcp.json` — one level up from this file, not next to it) —
-once the plugin is enabled *and a session has started after that*, its 9
-tools are just available directly, no CLI to shell out to. Every tool is
-read-only; there is nothing here that writes, so no audit log.
+Two separate paths, for two separate concerns:
 
-**If those tools aren't in your tool list** (plugin installed mid-session,
-or you're a subagent spawned from a session that predates the install),
-`scripts/mcp_client.py` drives the same server directly over stdio as a
-fallback — see `reference/api.md`.
+- **Reporting (read-only)** — `analytics-mcp`, Google's own MCP server
+  (PyPI: `analytics-mcp`), bundled as a real MCP server declaration at the
+  **plugin root** (`plugins/ga4/.mcp.json` — one level up from this file,
+  not next to it). Once the plugin is enabled *and a session has started
+  after that*, its 9 tools are just available directly, no CLI to shell out
+  to. Every one of those 9 tools only reads — `analytics-mcp` requests only
+  the `analytics.readonly` scope in its own source, so it cannot write no
+  matter what role the service account holds.
+- **Configuration (writes)** — `scripts/ga4_admin.py`, a custom script
+  against the Analytics Admin API v1beta directly, the same pattern as
+  `gtm`/`gsc`. This is the only way to create/change custom dimensions,
+  custom metrics, key events (what GA4 calls marking an event as a
+  conversion), or data streams — `analytics-mcp` has no tool for any of it.
+
+**If the reporting tools aren't in your tool list** (plugin installed
+mid-session, or you're a subagent spawned from a session that predates the
+install), `scripts/mcp_client.py` drives the same server directly over
+stdio as a fallback — see `reference/api.md`.
 
 ## Setup — check before the first call
 
@@ -36,10 +44,16 @@ fallback — see `reference/api.md`.
   interactive-shell-only, invisible to the non-interactive shell an agent
   runs commands in.
 - **The service account must be added inside the GA4 property itself**
-  (Admin → Property Access Management → Add users), **Viewer** or above — a
-  GCP IAM role grants nothing here, same pattern as `gtm`/`gsc`. Every tool
-  in this skill only ever reads, so Viewer is enough even if the account was
-  granted more.
+  (Admin → Property Access Management → Add users) — a GCP IAM role grants
+  nothing here, same pattern as `gtm`/`gsc`. **Viewer** is enough for the
+  `analytics-mcp` reporting tools; **`ga4_admin.py`'s writes need Editor or
+  above** (a 403 from `ga4_admin.py` with Viewer-level access is expected,
+  not a bug).
+- **Optionally, `GA_PROPERTY_ID` exported** for whichever property is used
+  most, so `ga4_admin.py`'s `--property` never needs to be typed (or
+  hardcoded) into a command. Without it, `--property` is required
+  explicitly. `analytics-mcp`'s reporting tools take `property_id` as a call
+  argument regardless — there's no equivalent env var for those.
 - **Two APIs enabled** on the GCP project: Google Analytics **Admin** API
   and Google Analytics **Data** API (`APIs & Services → Library`). An
   unenabled API 403s explicitly on the first call — an empty `{}`/`[]`
@@ -92,7 +106,7 @@ with `row_count: 0` — a present-but-empty key, not an absent one (contrast
 data). A brand-new property with no tracking snippet on the site yet reports
 this way; say so plainly rather than treating it as a failed call or retrying.
 
-## Tools
+## Tools (reporting, read-only)
 
 Full args, filter-expression shapes, and the two tools the upstream README
 doesn't document (`list_property_annotations`, `run_conversions_report`):
@@ -110,6 +124,40 @@ doesn't document (`list_property_annotations`, `run_conversions_report`):
 - `run_funnel_report(property_id, funnel_steps, ...)`
 - `run_conversions_report(property_id, date_ranges, dimensions, metrics, conversion_spec, ...)`
 
+## Configuration writes — `ga4_admin.py`
+
+Four resources, each with `list`/`get`/`create`/`patch`/`archive-or-delete`:
+
+```
+ga4_admin.py dimensions list|get|create|patch|archive  --property P | --name N ...
+ga4_admin.py metrics    list|get|create|patch|archive  --property P | --name N ...
+ga4_admin.py events     list|get|create|patch|delete   --property P | --name N ...
+ga4_admin.py streams    list|get|create|patch|delete   --property P | --name N ...
+```
+
+`--property` falls back to `GA_PROPERTY_ID`; `--name` is the full resource
+name (`properties/P/keyEvents/ID`, etc.) — copy it straight from a `list`
+response rather than reconstructing it. Full flags, field/enum reference,
+and the deprecated-resource note below: `reference/api.md`.
+
+**Workflow — same discover-before-mutate discipline as `gtm`/`gsc`:**
+1. `list` the resource first. Don't create something that already exists,
+   and don't guess a `--name` for `patch`/`archive`/`delete` — copy it from
+   the list.
+2. State plainly what's about to be created/changed/removed and get an
+   explicit yes before the call — there's no draft/publish staging step
+   here like `gtm`; every one of these calls takes effect immediately on
+   the real property.
+3. **"Create an event" almost always means `events create`** (a **key
+   event** — GA4's current term for "conversion event"; deprecation note in
+   `reference/api.md`). Creating a key event doesn't require the underlying
+   GA4 event to exist yet or ever fire — it just marks that event name as a
+   conversion whenever it does.
+4. **`archive` (dimensions/metrics) is not the same guarantee as `delete`
+   (events/streams).** A `429`/quota error on `create` means check `list`
+   first — a property has a limited number of custom dimension/metric
+   slots.
+
 ## Rules
 
 - **Never call anything but the service-account path for auth** — the
@@ -119,8 +167,11 @@ doesn't document (`list_property_annotations`, `run_conversions_report`):
   `GOOGLE_APPLICATION_CREDENTIALS`/`GOOGLE_PROJECT_ID`, in the shell
   environment** — those are the names `.mcp.json` remaps *to* for the
   subprocess, not what the user exports.
-- **Everything here is read-only.** There is no mutating tool, so no
-  confirmation gate and no audit log — unlike `gtm` (publish) and `gsc`
-  (sitemap submit/delete).
+- **The reporting tools (`analytics-mcp`) are read-only** — no confirmation
+  gate, no audit log needed there. **`ga4_admin.py` is not** — every
+  `create`/`patch`/`archive`/`delete` is appended to `.ga4-audit.jsonl` at
+  the repo root (auto-detected via the nearest `.git`), and needs the
+  explicit-confirmation step in Configuration writes #2 above before the
+  call is made, unlike the reporting tools.
 - **Empty is a finding, not an error** (see Workflow #4) — report it, don't
   retry.

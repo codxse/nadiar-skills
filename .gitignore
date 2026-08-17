@@ -4,4 +4,5 @@
 .nanobanana.jsonl
 .gtm-audit.jsonl
 .gsc-audit.jsonl
+.ga4-audit.jsonl
 __pycache__/

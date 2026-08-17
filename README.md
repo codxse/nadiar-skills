@@ -146,16 +146,17 @@ Source: `plugins/gsc/skills/gsc/`.
 
 ### `ga4`
 
-Query [Google Analytics 4](https://analytics.google.com) reporting data — traffic, sessions, events, conversions, funnels, realtime activity, custom dimensions/metrics — via Google's own official [`analytics-mcp`](https://github.com/googleanalytics/google-analytics-mcp) server. Triggers on any question about site traffic, users, top pages/events, conversion or ROAS numbers, a funnel, or what's happening on the site right now.
+[Google Analytics 4](https://analytics.google.com): query reporting data — traffic, sessions, events, conversions, funnels, realtime activity, custom dimensions/metrics — via Google's own official [`analytics-mcp`](https://github.com/googleanalytics/google-analytics-mcp) server, and manage property configuration — custom dimensions/metrics, key events (conversions), data streams — via the Analytics Admin API. Triggers on any question about site traffic, users, top pages/events, conversion or ROAS numbers, a funnel, what's happening on the site right now, or marking an event as a conversion.
 
-Structurally different from `gtm`/`gsc`: there's no custom script here. `analytics-mcp` is a real MCP server, bundled via `plugins/ga4/.mcp.json` — once the plugin is enabled its 9 tools (`get_account_summaries`, `run_report`, `run_realtime_report`, `run_funnel_report`, `run_conversions_report`, and others) are just available directly. Every tool is read-only, so there's no audit log and no confirmation gate, unlike `gtm`'s publish step or `gsc`'s sitemap writes.
+Two paths, structurally different from each other and from `gtm`/`gsc`. Reporting has no custom script: `analytics-mcp` is a real MCP server, bundled via `plugins/ga4/.mcp.json` — once the plugin is enabled its 9 tools (`get_account_summaries`, `run_report`, `run_realtime_report`, `run_funnel_report`, `run_conversions_report`, and others) are just available directly, and every one of them is read-only. Configuration writes go through `scripts/ga4_admin.py` instead, a custom script against the Admin API v1beta — `analytics-mcp` has no write tool at all, so this is the only way to create a custom dimension/metric, mark an event as a key event (conversion), or manage a data stream. Every write there is logged to a gitignored `.ga4-audit.jsonl` at the repo root, same pattern as `gtm`/`gsc`.
 
 **Requirements:**
 
 - `GA_SERVICE_ACCOUNT_KEY` and `GA_PROJECT_ID` exported — reuses the same service account key as `gtm`/`gsc`, plus the GCP project ID for API quota. Deliberately *not* named `GOOGLE_APPLICATION_CREDENTIALS`/`GOOGLE_PROJECT_ID` (what `analytics-mcp` itself needs) — those generic names are also read by `gcloud`, Terraform/OpenTofu, and other tools, so `.mcp.json` remaps the scoped names to the generic ones only for the `analytics-mcp` subprocess. Same zsh caveat as the other skills — **`~/.zshenv`, not `~/.zshrc`**.
-- That service account must additionally be added inside the GA4 property itself (Admin → Property Access Management, **Viewer** or above) — a GCP IAM role alone grants nothing there, same as `gtm`/`gsc`.
+- That service account must additionally be added inside the GA4 property itself (Admin → Property Access Management) — a GCP IAM role alone grants nothing there, same as `gtm`/`gsc`. **Viewer** covers the reporting tools; **Editor or above** is required for `ga4_admin.py`'s writes.
+- Optionally, `GA_PROPERTY_ID` exported for the property used most, so `ga4_admin.py`'s `--property` never needs to be typed (or hardcoded) into a command.
 - Google Analytics **Admin** API and **Data** API enabled on the service account's GCP project.
-- `pipx` installed — `analytics-mcp` runs via `pipx run analytics-mcp`, cached after the first launch.
+- `pipx` installed — `analytics-mcp` runs via `pipx run analytics-mcp`, cached after the first launch. `pip install google-auth` once for `ga4_admin.py` — already done if `gtm`/`gsc` are set up.
 
 Source: `plugins/ga4/skills/ga4/`.
 
