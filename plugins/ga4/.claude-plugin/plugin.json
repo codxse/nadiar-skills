@@ -1,7 +1,7 @@
 {
   "name": "ga4",
   "description": "Query Google Analytics 4 reporting data — traffic, events, conversions, funnels, realtime — via the official analytics-mcp server, against a service-account-scoped property.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "Nadiar"
   },

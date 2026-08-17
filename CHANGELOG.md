@@ -4,6 +4,15 @@ Notable changes to plugins in this marketplace, grouped by plugin. Versions foll
 
 ## ga4
 
+### 1.0.1 — 2026-08-17
+
+- Fixed via a blind zero-context subagent smoke test (a real natural-language traffic question, no mention of the skill, tools, or that it was a test) run immediately after 1.0.0 shipped:
+  - `reference/api.md` never stated that `dimensions`/`metrics` are plain string arrays (`["date", "activeUsers"]`) — the doc's own "snake_case, not camelCase" framing actively implied the REST API's `[{"name": "..."}]` object shape was right, just differently cased. The blind test hit exactly this: `Input validation error: {'name': 'sessions'} is not of type 'string'`. Now documented with an explicit example.
+  - `SKILL.md` described `.mcp.json` as "bundled here," read naturally as the skill directory — it actually lives one level up, at the plugin root (`plugins/ga4/.mcp.json`). Fixed to say so explicitly.
+- Added `scripts/mcp_client.py` — a single-call stdio JSON-RPC fallback for driving `analytics-mcp` directly when the plugin's registered MCP tools aren't in the current tool list (MCP servers load once at session start, so a plugin installed mid-session — or a subagent spawned from a session that predates the install — won't see them until a fresh session starts, even though `claude mcp list` reports the server `Connected` at the config level). Documents a real gotcha found live: the server exits on stdin EOF before a `tools/call` reply completes its network round trip, which reads as a silent hang rather than an error unless stdin is held open until the response is read.
+- Confirmed real end-to-end plugin behavior beyond the earlier manual testing: `claude plugin install ga4@nadiar-skills` from a shell registers `plugin:ga4:analytics-mcp` and `claude mcp list` reports it `Connected` — the `.mcp.json` bundling genuinely works, distinct from the `gtm`/`gsc` skills-dir-symlink-only approach (neither of which is formally plugin-installed on this machine, confirmed via `claude plugin list`)
+- Confirmed against the real `goldypaper.com` property (created same day, `create_time: 2026-08-17T05:10:38Z`): zero traffic on every report shape (30-day, all-time, realtime) is a genuine finding — the site has no tracking snippet installed yet, not an auth/API problem, corroborated by `get_property_details` returning full metadata rather than a 403
+
 ### 1.0.0 — 2026-08-17
 
 - Initial release: query Google Analytics 4 reporting data — account/property discovery, custom dimensions/metrics, Google Ads links, property annotations, and four report tools (`run_report`, `run_realtime_report`, `run_funnel_report`, `run_conversions_report`) — via Google's own official `analytics-mcp` server (PyPI: `analytics-mcp`), not a custom script like `gtm`/`gsc`

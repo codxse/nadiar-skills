@@ -88,6 +88,19 @@ Two of these aren't in the upstream README at all —
 `property_id` accepts either a bare number (`549905304`) or
 `"properties/549905304"`.
 
+## `dimensions` / `metrics` are plain strings, not objects
+
+```json
+{"dimensions": ["date", "sessionDefaultChannelGroup"], "metrics": ["activeUsers", "sessions"]}
+```
+
+**Not** `[{"name": "sessions"}]` — that's the REST API's JSON body shape,
+and this server rejects it: `Input validation error: {'name': 'sessions'}
+is not of type 'string'`. Every other structured argument here
+(`date_ranges`, `dimension_filter`, `order_bys`, `conversion_spec`) *is* an
+object or list of objects — `dimensions`/`metrics` are the one exception,
+a bare list of field-name strings.
+
 ## Field naming: snake_case, not the public REST docs' camelCase
 
 The Data API's own REST reference
@@ -208,3 +221,24 @@ separate `get_property_details` call.
 → `tools/list` / `tools/call`, same as any other MCP stdio server. First
 launch of `pipx run analytics-mcp` builds and caches a venv (slow, one-time);
 subsequent launches reuse the pipx cache and start immediately.
+
+**stdin must stay open until the response is read.** The server exits on
+stdin EOF before a `tools/call` reply completes its network round trip —
+closing stdin (or letting a `printf ... | pipx run analytics-mcp` pipeline
+end) right after sending the request reads as a silent hang, not an error.
+Hold the pipe open, read the matching response by `id`, and only then close
+stdin — see `scripts/mcp_client.py`.
+
+## If the plugin's MCP tools aren't in your tool list
+
+MCP servers load once at session start. Installing the `ga4` plugin
+mid-session (or being a subagent spawned from a session that predates the
+install) means the registered `analytics-mcp` tools won't show up until a
+fresh session starts — `claude mcp list` can report the server `Connected`
+at the config level while the *current* session still doesn't have it. Two
+ways to confirm which situation you're in:
+- Registered tools missing entirely (not even via `ToolSearch`): plugin
+  needs a fresh session, not a fix in this skill.
+- Need an answer now anyway: `scripts/mcp_client.py <tool_name> '<json_args>'`
+  drives the same server directly over stdio, reading `GA_SERVICE_ACCOUNT_KEY`/
+  `GA_PROJECT_ID` from the environment exactly like the plugin does.

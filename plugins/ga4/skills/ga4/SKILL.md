@@ -5,11 +5,18 @@ description: Query Google Analytics 4 reporting data — traffic, sessions, even
 
 # GA4 — Google Analytics 4 via analytics-mcp
 
-Unlike `gtm`/`gsc`, this skill has no custom script. `analytics-mcp` is
-Google's own MCP server (PyPI: `analytics-mcp`), bundled here as a real MCP
-server declaration (`.mcp.json`) rather than wrapped — once the plugin is
-enabled, its 9 tools are just available directly, no CLI to shell out to.
-Every tool is read-only; there is nothing here that writes, so no audit log.
+Unlike `gtm`/`gsc`, this skill has no custom script for its primary path.
+`analytics-mcp` is Google's own MCP server (PyPI: `analytics-mcp`), bundled
+as a real MCP server declaration at the **plugin root**
+(`plugins/ga4/.mcp.json` — one level up from this file, not next to it) —
+once the plugin is enabled *and a session has started after that*, its 9
+tools are just available directly, no CLI to shell out to. Every tool is
+read-only; there is nothing here that writes, so no audit log.
+
+**If those tools aren't in your tool list** (plugin installed mid-session,
+or you're a subagent spawned from a session that predates the install),
+`scripts/mcp_client.py` drives the same server directly over stdio as a
+fallback — see `reference/api.md`.
 
 ## Setup — check before the first call
 
@@ -71,10 +78,13 @@ user for it if `get_account_summaries` can answer it.
 
 **3. Field names are snake_case, not the camelCase the public REST docs
 show** — `date_ranges`, `dimension_filter`, `funnel_next_action`, and inside
-filter expressions `field_name`, `string_filter`, `case_sensitive`. This
-tripped nothing in testing but is worth stating plainly: copying a
+filter expressions `field_name`, `string_filter`, `case_sensitive`. Copying a
 camelCase example from `developers.google.com` verbatim will silently
-mismatch the schema.
+mismatch the schema. One shape trap this doesn't cover: **`dimensions` and
+`metrics` are plain string arrays** (`["date", "activeUsers"]`), not the
+REST API's `[{"name": "..."}]` objects — this did trip a live test
+(`Input validation error: ... is not of type 'string'`), see
+`reference/api.md`.
 
 **4. Empty results are real findings.** `run_report` returns `rows: []`
 with `row_count: 0` — a present-but-empty key, not an absent one (contrast
