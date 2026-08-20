@@ -125,7 +125,7 @@ The point is the safety boundary: every mutating call is logged to a gitignored 
 - `GTM_SERVICE_ACCOUNT_KEY` exported, pointing at a service account JSON key from Google Cloud Console. The same service account must be added as a user inside the GTM container itself (Admin → User Management, **Publish** permission) — a GCP IAM role alone grants nothing there.
 - `pip install google-auth` once — used only to RS256-sign the service account's JWT; every actual API call goes over stdlib `urllib`.
 - Tag Manager API enabled on the service account's GCP project.
-- Optionally `GTM_ACCOUNT_ID`/`GTM_CONTAINER_ID`/`GTM_WORKSPACE_ID` exported for the property used most, so `--account`/`--container`/`--workspace` never need to be typed (or hardcoded) into a command.
+- No env var for account/container/workspace, deliberately — those flags are required on every command that takes them. An ID identifies one site, so it belongs to the task, not to the machine: exported globally it would follow you into every unrelated project and let `version publish` ship to a container the command never named.
 
 Source: `plugins/gtm/skills/gtm/`.
 
@@ -140,7 +140,7 @@ Narrower than `gtm` by design: search performance and indexing status are read-o
 - `GTM_SERVICE_ACCOUNT_KEY` exported — reuses the exact same service account key as `gtm`. That service account must additionally be added as a user inside Search Console itself (Settings → Users and permissions, **Full** permission — Restricted can't submit/delete sitemaps) — a GCP IAM role alone grants nothing there, same as GTM.
 - `pip install google-auth` once — already installed if `gtm` is set up.
 - Search Console API enabled on the service account's GCP project.
-- Optionally `GSC_SITE_URL` exported for the property used most, so `--site` never needs to be typed (or hardcoded) into a command. Note a domain property (`sc-domain:example.com`) and a URL-prefix property (`https://example.com/`) are different properties, not interchangeable.
+- No env var for the site, deliberately — `--site` is required on every command that takes it, for the same reason as `gtm`'s IDs. Note a domain property (`sc-domain:example.com`) and a URL-prefix property (`https://example.com/`) are different properties, not interchangeable.
 
 Source: `plugins/gsc/skills/gsc/`.
 
@@ -154,7 +154,7 @@ Two paths, structurally different from each other and from `gtm`/`gsc`. Reportin
 
 - `GA_SERVICE_ACCOUNT_KEY` and `GA_PROJECT_ID` exported — reuses the same service account key as `gtm`/`gsc`, plus the GCP project ID for API quota. Deliberately *not* named `GOOGLE_APPLICATION_CREDENTIALS`/`GOOGLE_PROJECT_ID` (what `analytics-mcp` itself needs) — those generic names are also read by `gcloud`, Terraform/OpenTofu, and other tools, so `.mcp.json` remaps the scoped names to the generic ones only for the `analytics-mcp` subprocess. Same zsh caveat as the other skills — **`~/.zshenv`, not `~/.zshrc`**.
 - That service account must additionally be added inside the GA4 property itself (Admin → Property Access Management) — a GCP IAM role alone grants nothing there, same as `gtm`/`gsc`. **Viewer** covers the reporting tools; **Editor or above** is required for `ga4_admin.py`'s writes.
-- Optionally, `GA_PROPERTY_ID` exported for the property used most, so `ga4_admin.py`'s `--property` never needs to be typed (or hardcoded) into a command.
+- No env var for the property, deliberately — `ga4_admin.py --property` is required on every call, and the reporting tools take `property_id` as a call argument. `GA_PROJECT_ID` above is the exception: it names the GCP project billed for API quota, which travels with the key rather than with any GA4 property.
 - Google Analytics **Admin** API and **Data** API enabled on the service account's GCP project.
 - `pipx` installed — `analytics-mcp` runs via `pipx run analytics-mcp`, cached after the first launch. `pip install google-auth` once for `ga4_admin.py` — already done if `gtm`/`gsc` are set up.
 

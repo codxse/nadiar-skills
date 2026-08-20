@@ -268,25 +268,17 @@ def cmd_version_publish(args):
 
 # --- CLI wiring ---------------------------------------------------------
 
-# account/container/workspace stay fixed across most calls in one session,
-# so they fall back to these env vars instead of being retyped (or
-# hardcoded) into every command. tag/trigger/variable/version IDs are
-# per-entity and always explicit — no env var makes sense for those.
-ENV_DEFAULTS = {
-    "account": "GTM_ACCOUNT_ID",
-    "container": "GTM_CONTAINER_ID",
-    "workspace": "GTM_WORKSPACE_ID",
-}
+# Every ID is named on the command line, every time. An account/container/
+# workspace identifies one site, so it belongs to the task, not to the
+# machine — a default carried in the environment would let `version publish`
+# ship to whatever container happened to be exported, from any project, with
+# nothing in the command naming the target. Only the service account key is
+# read from the environment, because that is a property of this machine.
 
 
 def add_ids(sub, *names):
     for name in names:
-        env_var = ENV_DEFAULTS.get(name)
-        default = os.environ.get(env_var) if env_var else None
-        help_text = f"GTM {name} ID"
-        if env_var:
-            help_text += f" (default: ${env_var}, currently {'set' if default else 'unset'})"
-        sub.add_argument(f"--{name}", required=default is None, default=default, help=help_text)
+        sub.add_argument(f"--{name}", required=True, help=f"GTM {name} ID")
 
 
 def build_parser():

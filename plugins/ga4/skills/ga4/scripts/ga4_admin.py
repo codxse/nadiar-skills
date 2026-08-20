@@ -341,15 +341,17 @@ def cmd_streams_delete(args):
 
 # --- CLI wiring --------------------------------------------------------
 
-# --property stays fixed across most calls in one session, so it falls back
-# to GA_PROPERTY_ID instead of being retyped (or hardcoded) into every
-# command. --name is per-resource and always explicit — copy it straight
-# from a `list` response rather than reconstructing it.
+# --property is named on every call. A property identifies one site, so it
+# belongs to the task, not to the machine — a default carried in the
+# environment would let a create/patch/archive land on whatever property
+# happened to be exported, from any project, with nothing in the command
+# naming the target. Only the service account key is read from the
+# environment, because that is a property of this machine. --name is
+# per-resource and equally explicit — copy it straight from a `list`
+# response rather than reconstructing it.
 
 def add_property(sub):
-    default = os.environ.get("GA_PROPERTY_ID")
-    help_text = f"GA4 property ID or 'properties/N' (default: $GA_PROPERTY_ID, currently {'set' if default else 'unset'})"
-    sub.add_argument("--property", required=default is None, default=default, help=help_text)
+    sub.add_argument("--property", required=True, help="GA4 property ID or 'properties/N'")
 
 
 def add_name(sub, resource_hint):

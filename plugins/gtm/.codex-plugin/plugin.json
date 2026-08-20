@@ -1,6 +1,6 @@
 {
   "name": "gtm",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "Read and write Google Tag Manager configuration — accounts, containers, workspaces, tags, triggers, variables — and publish container versions, via the Tag Manager API v2.",
   "author": {
     "name": "Nadiar"

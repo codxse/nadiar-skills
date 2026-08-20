@@ -203,15 +203,15 @@ def cmd_inspect_url(args):
 
 # --- CLI wiring ---------------------------------------------------------
 
-# --site stays fixed across most calls in one session, so it falls back to
-# GSC_SITE_URL instead of being retyped (or hardcoded) into every command.
-# --sitemap/--url are per-call and always explicit — no env var makes sense
-# for those.
+# --site is named on every call. A site belongs to the task, not to the
+# machine — a default carried in the environment would let a sitemap submit
+# or delete land on whatever property happened to be exported, from any
+# project, with nothing in the command naming the target. Only the service
+# account key is read from the environment, because that is a property of
+# this machine. --sitemap/--url are per-call and equally explicit.
 
 def add_site(sub):
-    default = os.environ.get("GSC_SITE_URL")
-    help_text = f"Search Console site URL, e.g. sc-domain:example.com or https://example.com/ (default: $GSC_SITE_URL, currently {'set' if default else 'unset'})"
-    sub.add_argument("--site", required=default is None, default=default, help=help_text)
+    sub.add_argument("--site", required=True, help="Search Console site URL, e.g. sc-domain:example.com or https://example.com/")
 
 
 def build_parser():

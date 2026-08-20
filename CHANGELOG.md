@@ -4,6 +4,18 @@ Notable changes to plugins in this marketplace, grouped by plugin. Versions foll
 
 ## ga4
 
+### 2.0.0 — 2026-08-20
+
+- **Breaking: the ID flags no longer fall back to an environment variable.** `--property` is now required on every command that takes it. An ID like this identifies one site, so it belongs to the task, not to the machine: exported globally it follows you into every unrelated project, and a `create`/`patch`/`archive` could land on whatever property happened to be exported — with nothing in the command naming the target. The service account key stays in the environment, because that genuinely is a property of this machine. `GA_PROJECT_ID` also stays: it names the GCP project billed for API quota, which travels with the key rather than with any GA4 property
+- `analytics-mcp`'s reporting tools were never affected — they have always taken `property_id` as a call argument
+- `mcp_client.py` now exits non-zero when the call fails, which it previously never did for the failure that matters most. Detecting that needs two checks, not one: `analytics-mcp` reports a schema violation with `isError: true`, but swallows anything raised *inside* a tool — a missing credentials file, an unknown tool name — and returns it as ordinary text content with **`isError: false`** and a `{"error": "..."}` body. Found live: a broken credentials path printed its error to stdout and exited 0, so every caller checking exit status read it as success. The `{"error": ...}` match is narrowed to a dict of exactly one string-valued `error` key, so a real report carrying an `error` field is never misread as a failure
+- `mcp_client.py` also: expands `~` in `GA_SERVICE_ACCOUNT_KEY` before handing it to the subprocess (the three stdlib scripts already called `Path.expanduser()`; `analytics-mcp` is a separate process and never did, so a tilde path worked everywhere except here), treats an exported-but-empty var as unset, checks the key file exists up front, surfaces the subprocess's stderr instead of discarding it when no response arrives, and kills a hung server rather than raising `TimeoutExpired` as a traceback
+- Failure output now goes to stderr and success to stdout, so the two can be told apart without parsing
+- Unchanged and worth stating: the registered MCP server in `.mcp.json` gets none of this — Claude Code launches it directly, so its `GA_SERVICE_ACCOUNT_KEY` must already be an absolute path *and* be visible to a non-interactive process (`~/.zshenv`, not `~/.zshrc`), and it only picks up either at the start of a fresh session
+- `README.md` still advertised the removed `GTM_ACCOUNT_ID`/`GTM_CONTAINER_ID`/`GTM_WORKSPACE_ID`, `GSC_SITE_URL`, and `GA_PROPERTY_ID` env vars after the SKILL.md files had dropped them — the marketplace README contradicted all three skills until now
+- Migration: drop `GA_PROPERTY_ID` from your shell profile and pass `--property` explicitly. A command that relied on the fallback now fails with `error: the following arguments are required`, loudly and before any API call — it cannot silently hit the wrong property
+
+
 ### 1.1.0 — 2026-08-17
 
 - Added GA4 property configuration writes — custom dimensions, custom metrics, key events, data streams — via `scripts/ga4_admin.py` against the Analytics Admin API v1beta directly, since `analytics-mcp` (the reporting path) has no write tool of any kind and requests only the `analytics.readonly` scope in its own source code regardless of what role the service account holds
@@ -39,6 +51,12 @@ Notable changes to plugins in this marketplace, grouped by plugin. Versions foll
 
 ## gsc
 
+### 2.0.0 — 2026-08-20
+
+- **Breaking: the ID flags no longer fall back to an environment variable.** `--site` is now required on every command that takes it. An ID like this identifies one site, so it belongs to the task, not to the machine: exported globally it follows you into every unrelated project, and a `sitemaps submit`/`sitemaps delete` could land on whatever property happened to be exported — with nothing in the command naming the target. The service account key stays in the environment, because that genuinely is a property of this machine
+- Migration: drop `GSC_SITE_URL` from your shell profile and pass `--site` explicitly. A command that relied on the fallback now fails with `error: the following arguments are required`, loudly and before any API call — it cannot silently hit the wrong property
+
+
 ### 1.0.0 — 2026-08-17
 
 - Initial release: read Google Search Console data — search performance (`analytics query`), per-URL indexing status (`inspect url`) — and manage sitemaps (`sitemaps list/get/submit/delete`), via the Search Console API v1
@@ -51,6 +69,12 @@ Notable changes to plugins in this marketplace, grouped by plugin. Versions foll
 - `SKILL.md` treats empty results (no data in range, no sitemaps, unindexed URL) as real findings to report, not failures to retry — and calls out that domain (`sc-domain:`) and URL-prefix (`https://`) forms of the same site are different properties that 404 identically when confused
 
 ## gtm
+
+### 2.0.0 — 2026-08-20
+
+- **Breaking: the ID flags no longer fall back to an environment variable.** `--account`/`--container`/`--workspace` are now required on every command that takes them. An ID like this identifies one site, so it belongs to the task, not to the machine: exported globally it follows you into every unrelated project, and `version publish` could ship to whatever container happened to be exported — with nothing in the command naming the target. The service account key stays in the environment, because that genuinely is a property of this machine
+- Migration: drop `GTM_ACCOUNT_ID`/`GTM_CONTAINER_ID`/`GTM_WORKSPACE_ID` from your shell profile and pass `--account`/`--container`/`--workspace` explicitly. A command that relied on the fallback now fails with `error: the following arguments are required`, loudly and before any API call — it cannot silently hit the wrong property
+
 
 ### 1.0.1 — 2026-08-17
 
