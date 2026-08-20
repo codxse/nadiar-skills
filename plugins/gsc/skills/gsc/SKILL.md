@@ -31,15 +31,18 @@ account (`sites.add`/`sites.delete`) — that's out of scope by design.
 - **`pip install google-auth`** once — already done if `gtm` is set up.
 - **Search Console API enabled** on the service account's GCP project (APIs
   & Services → Library → "Search Console API").
-- **Optionally, `GSC_SITE_URL` exported** for whichever property is worked
-  on most — every command falls back to it instead of requiring `--site` on
-  every call. Without it, `--site` is required explicitly.
+- **No env var for the site, deliberately.** `--site` is required on every
+  command that takes it. A site belongs to the task, not to the machine —
+  exported globally, it would follow you into every unrelated project and let
+  a sitemap submit or delete land on a property the command never named. The
+  service account key is the only thing read from the environment, because
+  that is a property of this machine.
 
 ## Finding the site URL
 
-`--site` falls back to `GSC_SITE_URL` when that env var is set — pass the
-flag only to override, or to work against a different property for one
-call. Never hardcode it when the env var covers it.
+`--site` names the property on every call. Read it from the Search Console
+UI for the site you are actually working on rather than reusing one from an
+earlier session.
 
 A property is either a **domain property** (`sc-domain:example.com`, covers
 http/https and all subdomains) or a **URL-prefix property**
@@ -77,8 +80,7 @@ since it's the one command here that changes anything.
 
 ## Commands
 
-`--site` shown below is omittable once `GSC_SITE_URL` is set (see Setup) —
-included here for completeness, not because every call needs it typed out.
+(every `--site` below is required, not optional)
 
 ```
 gsc.py sites list

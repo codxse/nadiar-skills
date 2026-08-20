@@ -1,7 +1,7 @@
 {
   "name": "gsc",
   "description": "Read Google Search Console data — search performance, per-URL indexing status — and manage sitemaps, via the Search Console API v1.",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": {
     "name": "Nadiar"
   },

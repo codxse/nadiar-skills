@@ -24,16 +24,19 @@ every actual API call still goes over plain `urllib`.
 - **`pip install google-auth`** once. Nothing else to install.
 - **Tag Manager API enabled** on the service account's GCP project (APIs &
   Services → Library → "Tag Manager API").
-- **Optionally, `GTM_ACCOUNT_ID`/`GTM_CONTAINER_ID`/`GTM_WORKSPACE_ID`
-  exported** for whichever property is worked on most — every command falls
-  back to these instead of requiring `--account`/`--container`/`--workspace`
-  on every call. Without them, those three flags are required explicitly.
+- **No env var for account/container/workspace, deliberately.** Those three
+  flags are required on every command that takes them. An ID identifies one
+  site, so it belongs to the task, not to the machine — exported globally, it
+  would follow you into every unrelated project and let `version publish`
+  ship to a container the command never named. The service account key is the
+  only thing read from the environment, because that is a property of this
+  machine.
 
 ## Finding IDs
 
-Never hardcode an ID into a command when the matching env var covers it
-(see Setup); if a task needs a property that has no env var yet, ask the
-user to export one rather than typing the raw ID inline.
+Read the IDs for the container you are working on, and pass them on the
+command line. Don't carry one project's IDs into another session; look them
+up again.
 
 The fastest way to find an ID: open the container in the GTM UI, click into
 any workspace, and read the URL —
@@ -75,7 +78,7 @@ the confirmation as the safety boundary, not the API permission.
 
 ## Commands
 
-(flags below are omittable via env vars — see Setup)
+(every `--account`/`--container`/`--workspace` below is required, not optional)
 
 ```
 gtm.py accounts list

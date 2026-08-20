@@ -37,6 +37,12 @@ stdio as a fallback — see `reference/api.md`.
   check too, so exporting it globally could silently redirect them. `.mcp.json`
   remaps `GA_SERVICE_ACCOUNT_KEY` → `GOOGLE_APPLICATION_CREDENTIALS` for the
   `analytics-mcp` subprocess only — the rest of the shell never sees that name.
+  **Make it an absolute path, not `~/...`.** `analytics-mcp` is its own
+  process and never expands a tilde, so a `~` path fails there while working
+  fine for `ga4_admin.py`/`gtm.py`/`gsc.py`, which expand it themselves.
+  `scripts/mcp_client.py` expands it too; the server `.mcp.json` registers
+  does not, and it reads the variable only at session start — so a fix to the
+  environment needs a fresh session before that server sees it.
 - **`GA_PROJECT_ID` exported** — the GCP project ID used for API quota
   (`goldypaper-project-production`). Same remap reasoning; `analytics-mcp`
   wants `GOOGLE_PROJECT_ID`.
@@ -49,11 +55,15 @@ stdio as a fallback — see `reference/api.md`.
   `analytics-mcp` reporting tools; **`ga4_admin.py`'s writes need Editor or
   above** (a 403 from `ga4_admin.py` with Viewer-level access is expected,
   not a bug).
-- **Optionally, `GA_PROPERTY_ID` exported** for whichever property is used
-  most, so `ga4_admin.py`'s `--property` never needs to be typed (or
-  hardcoded) into a command. Without it, `--property` is required
-  explicitly. `analytics-mcp`'s reporting tools take `property_id` as a call
-  argument regardless — there's no equivalent env var for those.
+- **No env var for the property, deliberately.** `ga4_admin.py --property` is
+  required on every call, and `analytics-mcp`'s reporting tools take
+  `property_id` as a call argument. A property identifies one site, so it
+  belongs to the task, not to the machine — exported globally, it would follow
+  you into every unrelated project and let a create/patch/archive land on a
+  property the command never named. The service account key and
+  `GA_PROJECT_ID` are the only things read from the environment: the first is
+  a property of this machine, the second is the GCP project billed for API
+  quota, which travels with that key rather than with any GA4 property.
 - **Two APIs enabled** on the GCP project: Google Analytics **Admin** API
   and Google Analytics **Data** API (`APIs & Services → Library`). An
   unenabled API 403s explicitly on the first call — an empty `{}`/`[]`
@@ -135,8 +145,8 @@ ga4_admin.py events     list|get|create|patch|delete   --property P | --name N .
 ga4_admin.py streams    list|get|create|patch|delete   --property P | --name N ...
 ```
 
-`--property` falls back to `GA_PROPERTY_ID`; `--name` is the full resource
-name (`properties/P/keyEvents/ID`, etc.) — copy it straight from a `list`
+`--property` is required on every call; `--name` is the full resource name
+(`properties/P/keyEvents/ID`, etc.) — copy it straight from a `list`
 response rather than reconstructing it. Full flags, field/enum reference,
 and the deprecated-resource note below: `reference/api.md`.
 

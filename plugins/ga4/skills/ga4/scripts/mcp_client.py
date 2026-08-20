@@ -14,27 +14,42 @@ Usage:
 
 Reads GA_SERVICE_ACCOUNT_KEY / GA_PROJECT_ID from the environment, the same
 vars the plugin's .mcp.json remaps into GOOGLE_APPLICATION_CREDENTIALS /
-GOOGLE_PROJECT_ID for the real server process.
+GOOGLE_PROJECT_ID for the real server process. The key path is expanded here
+before being handed over: analytics-mcp runs as its own process and never
+expands a leading ~, unlike gtm.py/gsc.py/ga4_admin.py which call
+Path.expanduser() themselves. The registered MCP server in .mcp.json gets no
+such help — its GA_SERVICE_ACCOUNT_KEY must already be an absolute path.
+
+Exits non-zero on any failure, including a tool that failed while the
+JSON-RPC call itself succeeded — see is_tool_failure below for why that is
+not one check but two.
 """
 import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 
 def call(tool, args):
     env = dict(os.environ)
-    missing = [v for v in ("GA_SERVICE_ACCOUNT_KEY", "GA_PROJECT_ID") if v not in env]
+    # An exported-but-empty var is as unusable as an absent one, and fails far
+    # deeper in with an error that names neither.
+    missing = [v for v in ("GA_SERVICE_ACCOUNT_KEY", "GA_PROJECT_ID") if not env.get(v)]
     if missing:
         print(f"error: {' and '.join(missing)} not set — see SKILL.md Setup", file=sys.stderr)
         sys.exit(1)
-    env["GOOGLE_APPLICATION_CREDENTIALS"] = env["GA_SERVICE_ACCOUNT_KEY"]
+    key_path = Path(env["GA_SERVICE_ACCOUNT_KEY"]).expanduser()
+    if not key_path.is_file():
+        print(f"error: GA_SERVICE_ACCOUNT_KEY points at a missing file: {key_path}", file=sys.stderr)
+        sys.exit(1)
+    env["GOOGLE_APPLICATION_CREDENTIALS"] = str(key_path)
     env["GOOGLE_PROJECT_ID"] = env["GA_PROJECT_ID"]
     proc = subprocess.Popen(
         ["pipx", "run", "analytics-mcp"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
         text=True,
         bufsize=1,
         env=env,
@@ -82,8 +97,38 @@ def call(tool, args):
     resp = read(2)
 
     proc.stdin.close()
-    proc.wait(timeout=30)
-    return resp
+    try:
+        proc.wait(timeout=30)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+    return resp, proc.stderr.read()
+
+
+def is_tool_failure(text):
+    """Whether a successful JSON-RPC reply is really carrying a failed tool.
+
+    analytics-mcp reports its own failures two different ways. A schema
+    violation is caught by the MCP framework and comes back with
+    isError: true. Anything raised inside the tool — a missing credentials
+    file, an unknown tool name — is swallowed and returned as ordinary text
+    content with **isError: false**, the body being {"error": "..."}. Checking
+    isError alone therefore misses every auth failure, which is the one most
+    likely to happen on a fresh machine.
+
+    Matching is kept deliberately narrow — a dict of exactly one "error" key
+    holding a string — so a real report that happens to contain an "error"
+    field is never mistaken for a failure.
+    """
+    try:
+        parsed = json.loads(text)
+    except (TypeError, ValueError):
+        return False
+    return (
+        isinstance(parsed, dict)
+        and list(parsed) == ["error"]
+        and isinstance(parsed["error"], str)
+    )
 
 
 if __name__ == "__main__":
@@ -92,13 +137,21 @@ if __name__ == "__main__":
         sys.exit(1)
 
     tool_name, tool_args = sys.argv[1], json.loads(sys.argv[2])
-    response = call(tool_name, tool_args)
+    response, server_stderr = call(tool_name, tool_args)
 
     if response is None:
-        print("error: no response", file=sys.stderr)
+        print("error: no response from analytics-mcp", file=sys.stderr)
+        if server_stderr.strip():
+            print(server_stderr.strip(), file=sys.stderr)
         sys.exit(1)
     if "error" in response:
         print(json.dumps(response["error"], indent=2), file=sys.stderr)
         sys.exit(1)
-    for item in response["result"].get("content", []):
-        print(item.get("text", json.dumps(item)))
+
+    result = response["result"]
+    texts = [item.get("text", json.dumps(item)) for item in result.get("content", [])]
+    failed = result.get("isError") or any(is_tool_failure(text) for text in texts)
+    stream = sys.stderr if failed else sys.stdout
+    for text in texts:
+        print(text, file=stream)
+    sys.exit(1 if failed else 0)
