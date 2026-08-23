@@ -5,4 +5,5 @@
 .gtm-audit.jsonl
 .gsc-audit.jsonl
 .ga4-audit.jsonl
+.meta-ads-audit.jsonl
 __pycache__/
