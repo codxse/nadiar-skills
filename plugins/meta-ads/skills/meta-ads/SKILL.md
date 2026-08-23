@@ -7,7 +7,7 @@ description: Manage Meta (Facebook/Instagram) advertising — campaigns, ad sets
 
 Two paths onto the same Marketing API, with different auth and different reach. Pick per task, not per session.
 
-- **Hosted MCP server** — `https://mcp.facebook.com/ads`, run by Meta, declared as a real MCP server at the **plugin root** (`plugins/meta-ads/.mcp.json`, one level up from this file). Browser OAuth, no Meta app and no token to manage. Its tools are simply in your tool list once the plugin is enabled *and a session has started after that* — read the actual names from your tool list rather than from any published count, which has already changed once. Meta documents seven areas, and several are things the CLI has no command for at all: benchmarks and opportunity signals, Business Help Center article search, and the account activity log.
+- **Hosted MCP server** — `https://mcp.facebook.com/ads`, run by Meta, declared as a real MCP server at the **plugin root** (`plugins/meta-ads/.mcp.json`, one level up from this file). Browser OAuth, no Meta app and no token to manage. Its tools are simply in your tool list once the plugin is enabled *and a session has started after that* — **98 of them**, counted live, against the 29 that published write-ups claim, so read your own tool list rather than any number. Several whole features exist only here: **custom audiences** and **pixel event/parameter configuration** have no CLI command at all, experiments are read-only in the CLI but writable here, and ad preview, delivery-error lookup, field/alias resolution, Ads Library competitor search, activity logs, benchmarks and opportunity score are all MCP-only.
 - **ads-cli** — `meta`, run locally via `scripts/meta_ads.py`. A Meta **system user access token**. 72 commands with the full flag surface of the Marketing API: DCO creatives with multiple images/titles/bodies, raw `--targeting` / `--promoted-object` / `--asset-feed-spec` JSON, EU DSA payor/beneficiary fields, `--fields` as an escape hatch to any API field. Scriptable, so it is the path for anything batched or repeated.
 
 **Default to the MCP tools for reading and for ordinary campaign work.** Reach for the CLI when the MCP server has no tool for it, when a flag the tools don't expose matters, or when the same operation runs across many entities.
@@ -29,7 +29,13 @@ The wrapper exists because the bare CLI has four traps, each verified live again
 
 `--account act_...` is required on every command except `ads adaccount` and `ads page`, which are system-user-scoped. `--account`/`--business` are the wrapper's own flags, routed to the child environment; pass the CLI's `--ad-account-id` only where it is a genuine leaf option (`ads dataset connect|disconnect`). `--dry-run` prints the resolved command and whether it counts as a write, without running it.
 
-Full command map, budget modes, exit codes, and the rest of the traps: `reference/cli.md`. Hosted-server endpoint, verified OAuth metadata, and how to pin it read-only: `reference/mcp.md`.
+Full command map, budget modes, exit codes, and the rest of the traps: `reference/cli.md`. Tool inventory, call contracts, account-gating flags, and verified OAuth metadata: `reference/mcp.md`.
+
+## Two things every MCP tool call needs
+
+**`client_conversation_id`** — required on every call. Generate one 20-character `A-Za-z0-9` string on your first Meta Ads call and reuse that same value for every Meta Ads call in the conversation, topic changes included. Never derive it from an account/business/campaign id, and never send it to another MCP server's tools.
+
+**`advertiser_request`** — the user's own words, quoted, not paraphrased. Keep their language (do not translate), their register, and their vocabulary; don't upgrade plain words into ad-industry terms or add field names they never said. When they set a goal early and only said "yes" later, capture the goal, not the "yes". **No names, contact details, or other personal data** — this field goes to Meta.
 
 ## Setup — check before the first call
 
@@ -43,13 +49,15 @@ Click-by-click system user creation, token generation, and what each scope buys:
 
 ## Workflow
 
-**1. Resolve the ad account first, don't ask for it.** `ads adaccount list` (CLI, no `--account` needed) or the MCP account tool names every account the identity can reach, with its ID, currency and timezone. **Read the currency before quoting any money.** CLI budgets are bare integers in the account currency's smallest unit; the help text says "cents" because it assumes USD. Currencies whose smallest unit *is* the whole unit (IDR, JPY, KRW, VND) take the whole number instead, so the same `--daily-budget 5000` is $50.00 on one account and 5,000 on another — a 100× error in either direction. Confirm the account's currency from `adaccount list`, and if it is not one you have handled on this account before, confirm the multiplier against the account's own reported budget on an existing campaign before writing a new one.
+**1. Resolve the ad account first, don't ask for it.** `ads adaccount list` (CLI) or `ads_get_ad_accounts` (MCP) names every account the identity can reach. **The two paths do not see the same set** — a system user token reaches only what its business owns, while MCP OAuth reaches everything the person can, personal accounts included. So the account you must name is not implied by either.
+
+**Read the currency before quoting any money, and never trust a field name for the unit.** Budgets are bare integers in the account currency's smallest unit; the CLI help says "cents" and MCP's field is literally called `min_daily_budget_cents`, and **both are wrong for a currency with no subunit**. Verified live: an IDR account reports `min_daily_budget_cents: 18014`, meaning Rp 18,014; a USD account reports `100`, meaning $1.00. So the same `--daily-budget 5000` is $50.00 on one and Rp 5,000 on the other. `min_daily_budget_cents` from `ads_get_ad_accounts` is the cheapest anchor for what an integer means on a given account — read it before writing a budget, and quote money back to the user in that account's currency.
 
 **2. Read before you write, every time.** `campaign list` → `adset list` → `ad list`, or the MCP insights tools. Never guess an ID; copy it from a list response. An ad references a creative that must already exist, and an ad set references a campaign — the tree only makes sense top-down.
 
 **3. Keep the budget in exactly one place.** CBO puts it on the campaign, ABO on the ad sets, flex (`--adset-budget-sharing`) on the ad sets with up to 20% shared. Setting it in both places is the single most common failure, and the bid strategy and pacing flags move level with the budget. `reference/cli.md` has the decision table.
 
-**4. Create PAUSED and leave it that way.** The CLI defaults every create to `--status PAUSED` — verified in its own `--help`. The hosted server is documented as doing the same and exposes a separate activate tool, which is consistent with it, but that has not been confirmed against a live account here: **check the status field on the entity the tool returns** the first time you create through it, and pause it explicitly if it came back active. Going live is a separate step a human asks for by naming the entity. Never bundle activation into a create.
+**4. Create PAUSED and leave it that way.** The CLI defaults every create to `--status PAUSED`, verified in its own `--help`. The MCP side ships `ads_activate_entity` as a tool distinct from every create tool, which is what a create-paused design looks like — but no create has been run here, so **check the status on the entity the tool returns** the first time you create through it, and pause it explicitly if it came back active. Going live is a separate step a human asks for by naming the entity. Never bundle activation into a create.
 
 **5. Empty is a finding.** No campaigns, or insights with zero rows, is a real answer about a new or idle account. Report it plainly; do not retry or widen the date range unasked.
 
@@ -66,7 +74,9 @@ Every `create`, `update`, `delete`, `connect`, `disconnect`, and `assign-user` m
 
 ## What is verified, and what is not
 
-The read path is exercised: every `list`/`get` command in the map, plus `insights get`, has returned a real response from a live account. The **write path has not** — no `create`/`update`/`delete` has run against a real account, so treat the first one you run as the test, and read the returned object rather than assuming it landed as asked. The hosted MCP server's tool list and OAuth flow are likewise unexercised here; enumerate its tools from your own tool list on first use.
+The CLI read path is exercised: every `list`/`get` command in the map, plus `insights get`, has returned a real response from a live account. The MCP side is connected and its OAuth flow completed; `ads_get_ad_accounts` returned real data, which is where the tool count, the account-gating flags and the `min_daily_budget_cents` unit finding come from.
+
+**The write path is unexercised on both paths.** No `create`/`update`/`delete` has run against a real account, so the audit log has only ever recorded a failing call. Treat your first write as the test: read the object the call returns rather than assuming it landed as asked, and confirm its status field before anything else.
 
 ## Rules
 
@@ -76,4 +86,6 @@ The read path is exercised: every `list`/`get` command in the map, plus `insight
 - **Never quote or set a budget without having read the account currency** — the CLI's "cents" wording is a USD assumption, not a fact about the account.
 - **Never echo `ads page list` output raw** — it includes a live Page access token per Page (see `reference/cli.md`); strip `access_token` before showing or logging it.
 - **`meta auth status` is not verification** — use `meta_ads.py check`.
+- **Check `is_ads_mcp_enabled` before using an account id** in any MCP call, and `is_queryable` before `ads_get_ad_entities`; a false flag means stop, not retry.
+- **Reuse one `client_conversation_id` across the whole conversation**, and keep `advertiser_request` verbatim and free of personal data.
 - **Empty is a finding, not an error** (Workflow #5) — report it, don't retry.
