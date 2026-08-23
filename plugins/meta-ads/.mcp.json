@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "meta-ads": {
+      "type": "http",
+      "url": "https://mcp.facebook.com/ads",
+      "oauth": {
+        "scopes": "ads_management ads_read catalog_management business_management pages_show_list instagram_basic ads_mcp_management"
+      }
+    }
+  }
+}

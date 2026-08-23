@@ -65,6 +65,16 @@
       "category": "development",
       "source": "./plugins/ga4",
       "keywords": ["ga4", "google-analytics", "analytics", "reporting", "mcp", "google"]
+    },
+    {
+      "name": "meta-ads",
+      "description": "Manage Meta (Facebook/Instagram) ads — campaigns, ad sets, ads, creatives, insights, catalogs, datasets — via Meta's hosted ads MCP server at mcp.facebook.com/ads plus a guardrailed wrapper around the official ads-cli.",
+      "author": {
+        "name": "Nadiar"
+      },
+      "category": "development",
+      "source": "./plugins/meta-ads",
+      "keywords": ["meta-ads", "facebook-ads", "instagram-ads", "advertising", "marketing-api", "ads-cli", "mcp", "meta"]
     }
   ]
 }

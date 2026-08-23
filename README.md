@@ -16,6 +16,7 @@ Requires [Claude Code](https://claude.com/code).
 /plugin install gtm@nadiar-skills
 /plugin install gsc@nadiar-skills
 /plugin install ga4@nadiar-skills
+/plugin install meta-ads@nadiar-skills
 ```
 
 **From a shell** (equivalent, e.g. for scripting/dotfiles):
@@ -159,6 +160,23 @@ Two paths, structurally different from each other and from `gtm`/`gsc`. Reportin
 - `pipx` installed — `analytics-mcp` runs via `pipx run analytics-mcp`, cached after the first launch. `pip install google-auth` once for `ga4_admin.py` — already done if `gtm`/`gsc` are set up.
 
 Source: `plugins/ga4/skills/ga4/`.
+
+### `meta-ads`
+
+[Meta Ads](https://business.facebook.com): manage Facebook/Instagram advertising — campaigns, ad sets, ads, creatives, performance insights, product catalogs and feeds, datasets (pixels), A/B and lift studies — through Meta's own two [ads AI connectors](https://developers.facebook.com/documentation/ads-commerce/ads-ai-connectors/). Triggers on any question about Meta ad spend, ROAS, CPC/CPM/CTR, a campaign or ad set, creating or pausing an ad, a budget change, a product feed, or pixel/signal health.
+
+Two paths, deliberately kept side by side. The **hosted MCP server** at `https://mcp.facebook.com/ads` is bundled via `plugins/meta-ads/.mcp.json` — Meta runs it, browser OAuth with PKCE and dynamic client registration means there is no Meta app, no client ID and no token to manage, and it exposes **98 tools** (counted live, against the 29 published write-ups claim), several of them features the CLI has no command for at all: custom audiences, pixel event and parameter configuration, writable A/B and lift tests, ad preview, delivery-error lookup, Ads Library competitor search, activity logs, benchmarks and opportunity score. The **[ads-cli](https://developers.facebook.com/documentation/ads-commerce/ads-ai-connectors/ads-cli/setup/get-started)** (`meta`, PyPI [`meta-ads`](https://pypi.org/project/meta-ads/)) covers the other direction: 72 commands with the full Marketing API flag surface — DCO asset feeds, raw targeting JSON, EU DSA fields, `--fields` as an escape hatch — which makes it the path for anything batched or flag-specific.
+
+The CLI is never called directly. `scripts/meta_ads.py` wraps it to fix four things verified live against v1.1.0: `meta auth status` reports `Authenticated` for any non-empty string and exits 0 without ever calling the API (`meta_ads.py check` calls it); a `.env` in *any* ancestor directory is read automatically, so the account a write lands on could depend on the working directory; `ACCESS_TOKEN` is too generic a name to export globally, so the wrapper reads `META_ADS_ACCESS_TOKEN` and remaps it for the subprocess only; and `auth status` with nothing configured exits 0. Every mutating CLI invocation is logged to a gitignored `.meta-ads-audit.jsonl` at the repo root, same pattern as `gtm`/`gsc`/`ga4` — writes made through the MCP tools are not, and Meta's own account activity log is the trail for those.
+
+**Requirements:**
+
+- `META_ADS_ACCESS_TOKEN` exported — a Meta **system user** access token (Business Suite → Settings → Users → System Users), with `ads_management`, `ads_read`, `business_management`, `pages_show_list`, `pages_read_engagement`, `pages_manage_ads`, `catalog_management`, `read_insights`. Same zsh caveat as the other skills — **`~/.zshenv`, not `~/.zshrc`**. Needed for the CLI path only; the hosted MCP server needs nothing exported.
+- Each asset assigned to that system user individually inside Business Manager — the ad account, the Page, the pixel, the catalog. Business-admin role alone grants none of it, so a token that lists campaigns can still 403 on a Page.
+- No env var for the ad account, deliberately — `--account act_...` is required on every account-scoped call. An ad account is one advertiser's money; exported globally it would follow you into every unrelated project and let a budget change land on an account the command never named.
+- `uv` installed — the wrapper runs `uvx --from meta-ads meta` when `meta` isn't on `PATH`, cached after the first launch. `pip install meta-ads` works too, as does `META_ADS_CLI` pointing at any command. **Python 3.12+** either way.
+
+Source: `plugins/meta-ads/skills/meta-ads/`.
 
 ## Adding a new skill
 

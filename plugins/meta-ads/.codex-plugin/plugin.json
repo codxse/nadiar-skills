@@ -1,0 +1,11 @@
+{
+  "name": "meta-ads",
+  "version": "1.0.0",
+  "description": "Manage Meta (Facebook/Instagram) ads — campaigns, ad sets, ads, creatives, insights, catalogs, datasets — via Meta's hosted ads MCP server plus a guardrailed wrapper around the official ads-cli.",
+  "author": {
+    "name": "Nadiar"
+  },
+  "license": "MIT",
+  "keywords": ["meta-ads", "facebook-ads", "instagram-ads", "advertising", "marketing-api", "ads-cli", "mcp", "meta"],
+  "skills": "./skills/"
+}
