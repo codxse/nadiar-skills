@@ -45,6 +45,28 @@ same tweet twice in one day doesn't double-charge. `users tweets --count
 The alternative, **Basic**, is a $200/month subscription (100
 requests/15min per user, 10,000/24h per app for posting).
 
+## Media upload
+
+`POST https://api.x.com/2/media/upload`, multipart/form-data with a `media`
+file part plus `media_category` and `media_type` fields. Returns
+`{"data": {"id": "...", "media_key": "..."}}`; the `id` is what
+`POST /2/tweets` takes as `media.media_ids`.
+
+Two things that differ from the JSON endpoints:
+
+- **The host is `api.x.com`, not `api.twitter.com`** — this is the v2
+  endpoint that replaced v1.1's `upload.twitter.com/1.1/media/upload.json`.
+- **The multipart body is not part of the OAuth 1.0a signature**, exactly
+  like a JSON body — the base string is still method + URL + query params
+  only, so the same `oauth1_header()` signs it unchanged.
+
+An uploaded media id is unattached and invisible until a tweet references
+it, and expires on its own if none does — which makes `media upload` the
+cheapest end-to-end credential check that touches a write path.
+
+Alt text is **not** part of this endpoint. It needs a separate
+`POST /1.1/media/metadata/create` call, which this skill does not make.
+
 ## Rate limits (Pay Per Use / Basic-equivalent tier)
 
 - `POST /2/tweets`: 100 requests / 15 min per user, 10,000 / 24h per app.
