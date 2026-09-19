@@ -26,6 +26,7 @@ from pathlib import Path
 
 API_BASE = "https://api.twitter.com/2/"
 MEDIA_UPLOAD_URL = "https://api.x.com/2/media/upload"
+MEDIA_METADATA_URL = "https://api.x.com/2/media/metadata"
 TWEET_FIELDS = "created_at,public_metrics,lang"
 USER_FIELDS = "public_metrics,description,created_at"
 
@@ -165,8 +166,46 @@ def multipart_body(fields, file_field, filename, content_type, blob):
     return f"multipart/form-data; boundary={boundary}", b"\r\n".join(parts)
 
 
-def upload_media(path):
-    """Upload one image and return its media id, via POST /2/media/upload."""
+def signed_post(url, body, content_type, what, timeout=30):
+    """POST to a full URL outside API_BASE, signed with OAuth 1.0a."""
+    api_key, api_secret, access_token, access_secret = credentials()
+    auth_header = oauth1_header("POST", url, {}, api_key, api_secret, access_token, access_secret)
+
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={"Authorization": auth_header, "Content-Type": content_type},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode(errors="replace")[:800]
+        hint = ERROR_HINTS.get(error.code, "")
+        raise Failure(f"HTTP {error.code} {error.reason} {what}"
+                      + (f" — {hint}" if hint else "") + f"\n{detail}") from None
+
+
+def describe_media(media_id, alt, source_name):
+    """Attach alt text to an uploaded image, before it is used in a tweet.
+
+    X has no way to edit alt text once a post is live, and this endpoint
+    only accepts a media id that no tweet references yet — so this is the
+    single moment the description can be set at all.
+    """
+    if len(alt) > 1000:
+        raise Failure(f"alt text for {source_name} is {len(alt)} characters, over X's 1000 limit")
+    signed_post(
+        MEDIA_METADATA_URL,
+        json.dumps({"id": media_id, "metadata": {"alt_text": {"text": alt}}}).encode(),
+        "application/json",
+        f"setting alt text on {source_name}",
+    )
+
+
+def upload_media(path, alt=None):
+    """Upload one image, optionally describe it, and return its media id."""
     source = Path(path).expanduser()
     if not source.is_file():
         raise Failure(f"media file not found: {source}")
@@ -175,9 +214,6 @@ def upload_media(path):
     if not content_type.startswith("image/"):
         raise Failure(f"{source.name} is {content_type}; only images are supported here")
 
-    api_key, api_secret, access_token, access_secret = credentials()
-    auth_header = oauth1_header("POST", MEDIA_UPLOAD_URL, {}, api_key, api_secret, access_token, access_secret)
-
     body_type, body = multipart_body(
         {"media_category": "tweet_image", "media_type": content_type},
         "media",
@@ -185,32 +221,22 @@ def upload_media(path):
         content_type,
         source.read_bytes(),
     )
+    result = signed_post(MEDIA_UPLOAD_URL, body, body_type, f"uploading {source.name}", timeout=120)
 
-    req = urllib.request.Request(
-        MEDIA_UPLOAD_URL,
-        data=body,
-        headers={"Authorization": auth_header, "Content-Type": body_type},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=120) as response:
-            result = json.loads(response.read())
-    except urllib.error.HTTPError as error:
-        detail = error.read().decode(errors="replace")[:800]
-        hint = ERROR_HINTS.get(error.code, "")
-        raise Failure(f"HTTP {error.code} {error.reason} uploading {source.name}"
-                      + (f" — {hint}" if hint else "") + f"\n{detail}") from None
-
-    media_id = result.get("data", {}).get("id") or result.get("id")
+    media_id = result.get("data", {}).get("id")
     if not media_id:
         raise Failure(f"upload succeeded but no media id in response:\n{json.dumps(result)}")
+
+    if alt:
+        describe_media(media_id, alt, source.name)
     return media_id
 
 
-def post_tweet(text, media_paths=None, reply_to=None):
+def post_tweet(text, media=None, reply_to=None):
+    """`media` is a list of {"path": ..., "alt": ...} in display order."""
     body = {"text": text}
-    if media_paths:
-        body["media"] = {"media_ids": [upload_media(path) for path in media_paths]}
+    if media:
+        body["media"] = {"media_ids": [upload_media(m["path"], m.get("alt")) for m in media]}
     if reply_to:
         body["reply"] = {"in_reply_to_tweet_id": reply_to}
     return request("POST", "tweets", body=body)
@@ -251,23 +277,37 @@ def check_length(text, label):
     return length
 
 
+def pair_media(paths, alts):
+    """Zip --media with --alt positionally. Fewer --alt than --media is a
+    mistake worth stopping for: alt text cannot be added once a post is live."""
+    paths = paths or []
+    alts = alts or []
+    if alts and len(alts) != len(paths):
+        raise Failure(f"got {len(paths)} --media but {len(alts)} --alt; "
+                      "pass one --alt per image, in the same order")
+    return [{"path": path, "alt": alts[index] if alts else None}
+            for index, path in enumerate(paths)]
+
+
 def cmd_tweets_post(args):
     text = read_text(args)
     check_length(text, "tweet")
-    result = post_tweet(text, args.media, args.reply_to)
+    media = pair_media(args.media, args.alt)
+    result = post_tweet(text, media, args.reply_to)
     record({"action": "post", "id": result.get("data", {}).get("id"), "text": text,
-            "media": args.media or [], "reply_to": args.reply_to})
+            "media": media, "reply_to": args.reply_to})
     print_json(result)
 
 
 def cmd_media_upload(args):
-    print_json({"media_id": upload_media(args.file)})
+    print_json({"media_id": upload_media(args.file, args.alt)})
 
 
 # --- threads -------------------------------------------------------------
 
 def load_thread(path):
-    """Read a thread file: a JSON list of {"text": ..., "media": [paths]}."""
+    """Read a thread file: a JSON list of
+    {"text": ..., "media": [{"path": ..., "alt": ...}]}."""
     try:
         entries = json.loads(Path(path).read_text())
     except (OSError, json.JSONDecodeError) as error:
@@ -281,22 +321,30 @@ def load_thread(path):
         if not isinstance(entry, dict) or not isinstance(entry.get("text"), str):
             raise Failure(f'tweet {index}: each entry must be an object with a "text" string')
         media = entry.get("media", [])
-        if not isinstance(media, list) or any(not isinstance(m, str) for m in media):
-            raise Failure(f'tweet {index}: "media" must be a list of file paths')
+        if not isinstance(media, list):
+            raise Failure(f'tweet {index}: "media" must be a list')
         if len(media) > 4:
             raise Failure(f"tweet {index}: X accepts at most 4 images per tweet")
+        for item in media:
+            if not isinstance(item, dict) or not isinstance(item.get("path"), str):
+                raise Failure(f'tweet {index}: each media entry must be an object '
+                              'with a "path" string and an optional "alt" string')
         tweets.append({"text": entry["text"], "media": media})
     return tweets
 
 
-def validate_thread(tweets):
+def validate_thread(tweets, require_alt=False):
     """Check every tweet and every media file before posting anything — a
     thread that fails on tweet 3 leaves two orphans on the timeline."""
     for index, tweet in enumerate(tweets, 1):
         length = check_length(tweet["text"], f"tweet {index}")
-        for path in tweet["media"]:
-            if not Path(path).expanduser().is_file():
-                raise Failure(f"tweet {index}: media file not found: {path}")
+        for item in tweet["media"]:
+            if not Path(item["path"]).expanduser().is_file():
+                raise Failure(f"tweet {index}: media file not found: {item['path']}")
+            if require_alt and not item.get("alt"):
+                raise Failure(f"tweet {index}: {Path(item['path']).name} has no alt text, "
+                              "and --require-alt was passed; alt text cannot be added "
+                              "after a post is live")
         yield index, length
 
 
@@ -305,12 +353,13 @@ def cmd_tweets_thread(args):
         raise Failure("--min-delay cannot be greater than --max-delay")
 
     tweets = load_thread(args.file)
-    plan = list(validate_thread(tweets))
+    plan = list(validate_thread(tweets, args.require_alt))
 
     if args.dry_run:
         for index, length in plan:
             media = tweets[index - 1]["media"]
-            suffix = f", {len(media)} image(s)" if media else ""
+            described = sum(1 for m in media if m.get("alt"))
+            suffix = f", {len(media)} image(s), {described} with alt text" if media else ""
             print(f"[{index}/{len(tweets)}] {length} chars{suffix}")
         print(f"delay between tweets: random {args.min_delay}-{args.max_delay}s")
         return
@@ -401,12 +450,16 @@ def build_parser():
     group.add_argument("--text-file")
     post.add_argument("--media", nargs="+", metavar="FILE",
                       help="up to 4 image files to attach, in display order")
+    post.add_argument("--alt", nargs="+", metavar="TEXT",
+                      help="alt text, one per --media in the same order")
     post.add_argument("--reply-to", metavar="ID",
                       help="post as a reply to this tweet id")
 
     thread = tweets.add_parser("thread")
     thread.add_argument("--file", required=True,
-                        help='JSON list of {"text": ..., "media": [paths]}')
+                        help='JSON list of {"text": ..., "media": [{"path": ..., "alt": ...}]}')
+    thread.add_argument("--require-alt", action="store_true",
+                        help="refuse to post if any image lacks alt text")
     thread.add_argument("--min-delay", type=float, default=60,
                         help="minimum seconds between tweets (default 60)")
     thread.add_argument("--max-delay", type=float, default=300,
@@ -425,6 +478,7 @@ def build_parser():
     media = resource.add_parser("media").add_subparsers(dest="verb", required=True)
     media_upload = media.add_parser("upload")
     media_upload.add_argument("--file", required=True)
+    media_upload.add_argument("--alt", help="alt text to attach to the upload")
 
     users = resource.add_parser("users").add_subparsers(dest="verb", required=True)
     users.add_parser("me")

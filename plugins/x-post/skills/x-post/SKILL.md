@@ -1,6 +1,6 @@
 ---
 name: x-post
-description: Post and read on X (Twitter) via API v2 — post a tweet, post a multi-tweet thread with images and a randomised delay between tweets, read a user's recent tweets, delete a tweet. Use when the user asks to post/tweet something, draft a tweet or a thread, attach an image to a tweet, read their own or someone's recent posts, check their X account, or delete a tweet. Also use when X, Twitter, tweeting, a thread, or a tweet draft is mentioned directly. Do NOT use for DMs, likes/retweets, follows, Spaces, alt text on images, or analytics beyond public_metrics on a single tweet/user — none of that is wired up here, only posting, threading, uploading images, reading, and deleting.
+description: Post and read on X (Twitter) via API v2 — post a tweet, post a multi-tweet thread with images plus alt text and a randomised delay between tweets, read a user's recent tweets, delete a tweet. Use when the user asks to post/tweet something, draft a tweet or a thread, attach an image to a tweet, read their own or someone's recent posts, check their X account, or delete a tweet. Also use when X, Twitter, tweeting, a thread, or a tweet draft is mentioned directly. Do NOT use for DMs, likes/retweets, follows, Spaces, alt text on images, or analytics beyond public_metrics on a single tweet/user — none of that is wired up here, only posting, threading, uploading images, reading, and deleting.
 ---
 
 # X — post and read via API v2
@@ -56,12 +56,18 @@ A thread is a JSON file: a list of objects, each with a `text` and an optional `
 ```json
 [
   { "text": "First tweet." },
-  { "text": "Second, with a before/after pair.", "media": ["before.png", "after.png"] }
+  {
+    "text": "Second, with a before/after pair.",
+    "media": [
+      { "path": "before.png", "alt": "What the before shot shows." },
+      { "path": "after.png", "alt": "What the after shot shows." }
+    ]
+  }
 ]
 ```
 
 ```
-python3 scripts/x_post.py tweets thread --file thread.json --dry-run
+python3 scripts/x_post.py tweets thread --file thread.json --dry-run --require-alt
 python3 scripts/x_post.py tweets thread --file thread.json
 ```
 
@@ -76,13 +82,17 @@ If a tweet fails partway, the error names the ids already posted and prints the 
 ## Media
 
 ```
-python3 scripts/x_post.py tweets post --text-file draft.txt --media before.png after.png
-python3 scripts/x_post.py media upload --file shot.png
+python3 scripts/x_post.py tweets post --text-file draft.txt --media before.png after.png --alt "..." "..."
+python3 scripts/x_post.py media upload --file shot.png --alt "..."
 ```
 
 Images only, via `POST /2/media/upload` (the v2 endpoint, not v1.1's `upload.twitter.com`). `media upload` alone returns a `media_id` — a safe way to check credentials, since an uploaded image is invisible until a tweet references it and expires on its own if none ever does.
 
-**Alt text is not wired up.** X takes it through a separate call (`POST /1.1/media/metadata/create`) this skill doesn't make, so an image posted here has none unless it's added by hand in the X UI afterwards.
+**Alt text can only be set here, at upload time.** `POST /2/media/metadata` accepts a media id that no tweet references yet, and X offers no way to edit alt text once a post is live — the only remedy afterwards is deleting the post and rebuilding it, which in a thread breaks the reply chain below it. So an image posted without alt text stays that way.
+
+`--alt` takes one text per `--media`, in the same order, and a count mismatch is refused rather than silently leaving the last image bare. In a thread file, alt text rides on each media entry. `--require-alt` turns a missing description into a refusal, which is worth passing whenever the images carry part of the argument.
+
+X's limit is 1000 characters per description.
 
 ## Commands
 

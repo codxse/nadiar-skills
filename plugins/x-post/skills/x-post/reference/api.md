@@ -64,8 +64,26 @@ An uploaded media id is unattached and invisible until a tweet references
 it, and expires on its own if none does — which makes `media upload` the
 cheapest end-to-end credential check that touches a write path.
 
-Alt text is **not** part of this endpoint. It needs a separate
-`POST /1.1/media/metadata/create` call, which this skill does not make.
+### Alt text
+
+A second call, `POST https://api.x.com/2/media/metadata`, with a JSON body:
+
+```json
+{"id": "<media id>", "metadata": {"alt_text": {"text": "..."}}}
+```
+
+It returns the stored description back under `data.associated_metadata`.
+Two constraints, both load-bearing:
+
+- **It only takes a media id no tweet references yet.** X exposes no way
+  to edit alt text on a live post, in the API or the UI, so upload time is
+  the only moment a description can be attached at all.
+- **The v1.1 equivalent is gone.** `POST
+  https://upload.twitter.com/1.1/media/metadata/create` answers **403** on
+  a current Pay Per Use project, verified against a live account — it is
+  not a permissions problem to debug, it's the deprecated path.
+
+Limit is 1000 characters per description.
 
 ## Rate limits (Pay Per Use / Basic-equivalent tier)
 

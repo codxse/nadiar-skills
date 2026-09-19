@@ -1,7 +1,7 @@
 {
   "name": "x-post",
   "description": "Post and read on X (Twitter) via API v2 — OAuth 1.0a user context, pure stdlib Python. Covers posting a tweet, posting a paced thread with images, reading a user's recent tweets to match their voice, and deleting a tweet.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": {
     "name": "Nadiar"
   },
