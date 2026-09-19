@@ -1,6 +1,6 @@
 ---
 name: x-post
-description: Post and read on X (Twitter) via API v2 — post a tweet, post a multi-tweet thread with images plus alt text and a randomised delay between tweets, read a user's recent tweets, delete a tweet. Use when the user asks to post/tweet something, draft a tweet or a thread, attach an image to a tweet, read their own or someone's recent posts, check their X account, or delete a tweet. Also use when X, Twitter, tweeting, a thread, or a tweet draft is mentioned directly. Do NOT use for DMs, likes/retweets, follows, Spaces, alt text on images, or analytics beyond public_metrics on a single tweet/user — none of that is wired up here, only posting, threading, uploading images, reading, and deleting.
+description: Post and read on X (Twitter) via API v2 — post a tweet, post a multi-tweet thread with images plus alt text and a randomised delay between tweets, read a user's recent tweets, delete a tweet. Use when the user asks to post/tweet something, draft a tweet or a thread, attach an image to a tweet, read their own or someone's recent posts, check their X account, or delete a tweet. Also use when X, Twitter, tweeting, a thread, or a tweet draft is mentioned directly. Do NOT use for DMs, likes/retweets, follows, Spaces, video or GIF uploads, or analytics beyond public_metrics on a single tweet/user — none of that is wired up here, only posting, threading, uploading and describing images, reading, and deleting.
 ---
 
 # X — post and read via API v2
@@ -51,7 +51,7 @@ python3 scripts/x_post.py tweets post --text-file /path/to/draft.txt
 
 ## Threads
 
-A thread is a JSON file: a list of objects, each with a `text` and an optional `media` list of image paths (max 4 per tweet, in display order).
+A thread is a JSON file: a list of objects, each with a `text` and an optional `media` list of `{path, alt}` entries (max 4 per tweet, in display order).
 
 ```json
 [
