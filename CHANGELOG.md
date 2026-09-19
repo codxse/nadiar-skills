@@ -2,6 +2,18 @@
 
 Notable changes to plugins in this marketplace, grouped by plugin. Versions follow [Semantic Versioning](https://semver.org/) and match each plugin's `.claude-plugin/plugin.json` / `.codex-plugin/plugin.json` `version` field.
 
+## x-post
+
+### 1.0.0 — 2026-09-19
+
+- New plugin. Post and read on X (Twitter) via API v2, OAuth 1.0a user context, behind `scripts/x.py` — `tweets post|get|delete`, `users me|get|tweets`
+- Zero dependency, unlike `gtm`/`gsc`/`ga4`: OAuth 1.0a is HMAC-SHA1 (`hmac`/`hashlib`/`base64`, all stdlib), not RS256, so no `google-auth`-equivalent is needed. Every call goes over `urllib.request`
+- Built and verified against a real account's setup end to end, which surfaced three setup traps now documented in `SKILL.md`, each one that silently breaks posting without breaking reads or vice versa: (1) app permission defaults to Read-only, must be set to Read and write; (2) an Access Token generated *before* that permission change stays read-only forever — regenerating it after is the only fix, not automatic; (3) X deprecated the Free API tier, and an app can show *some* Project attached while that project's plan is dead — `HTTP 403 client-not-enrolled` fires on every call including reads, and the fix (console.x.com → Project Access → "Move here" into a **Pay Per Use** project with purchased credit) is a separate explicit step from creating the project and buying credit
+- Chose **Pay Per Use** ($0.015/post, $0.005/tweet read, no subscription) over **Basic** ($200/month) as the documented default — the right call for occasional personal posting, wrong for anything high-volume
+- `tweets post` never fires without the exact final text shown and a fresh explicit yes, same safety pattern as `gtm`'s `version publish` — a tweet is public and effectively permanent even though the API technically allows delete
+- `tweets post`/`tweets delete` logged to a gitignored `.x-audit.jsonl` at the repo root, same pattern as `gtm`/`gsc`/`ga4`/`meta-ads`
+- `users tweets --username U --count N` reads a user's recent standalone posts (retweets always excluded, replies excluded unless `--include-replies`) to ground a style-matched draft in their actual voice rather than a guess — `reference/api.md` notes the per-call cost (≈$0.11 for a 20-tweet read) since Pay Per Use makes reads billable too, not just writes
+
 ## meta-ads
 
 ### 1.0.0 — 2026-08-23

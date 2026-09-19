@@ -17,6 +17,7 @@ Requires [Claude Code](https://claude.com/code).
 /plugin install gsc@nadiar-skills
 /plugin install ga4@nadiar-skills
 /plugin install meta-ads@nadiar-skills
+/plugin install x-post@nadiar-skills
 ```
 
 **From a shell** (equivalent, e.g. for scripting/dotfiles):
@@ -177,6 +178,23 @@ The CLI is never called directly. `scripts/meta_ads.py` wraps it to fix four thi
 - `uv` installed — the wrapper runs `uvx --from meta-ads meta` when `meta` isn't on `PATH`, cached after the first launch. `pip install meta-ads` works too, as does `META_ADS_CLI` pointing at any command. **Python 3.12+** either way.
 
 Source: `plugins/meta-ads/skills/meta-ads/`.
+
+### `x-post`
+
+Post and read on [X (Twitter)](https://x.com) via API v2 — post a tweet, read a user's recent tweets (to match their voice before drafting), delete a tweet. Triggers on any request to post/tweet something, draft a tweet, read recent posts, or check an X account.
+
+OAuth 1.0a user context, no dependency at all — unlike `gtm`/`gsc`/`ga4`'s RS256 service-account JWT (which needs `google-auth`), OAuth 1.0a is HMAC-SHA1, which stdlib `hmac`/`hashlib` cover natively. The point, same as the other skills, is the safety boundary: `tweets post` always shows the exact final text and waits for an explicit yes before the one irreversible-in-practice call, and every post/delete is logged to a gitignored `.x-audit.jsonl` at the repo root.
+
+Three setup traps found live and documented in detail in `SKILL.md`, each one that silently breaks posting without breaking reads or vice versa: the app's permission must be "Read and write" (default is read-only); an Access Token generated *before* that permission change stays read-only forever and must be regenerated after; and the app's Project must be an active **paid** plan — X deprecated the Free tier, and an app can look attached to "a" project while that project's plan is dead, which 403s every call including reads.
+
+**Requirements:**
+
+- `X_API_KEY`, `X_API_KEY_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET` exported — all four from console.x.com → the app → Keys & Tokens. Same zsh caveat as the other skills — **`~/.zshenv`, not `~/.zshrc`**.
+- The app's Project attached to a **Pay Per Use** project with purchased credit (cheapest for occasional posting — $0.015/post, $0.005/tweet read, no subscription) or a **Basic** ($200/month) subscription. Console.x.com → Projects → Create Project → Credits → Purchase credits, then App → Project Access → Manage → "Move here" into the paid project — creating the project and buying credit alone does nothing until the app is explicitly moved.
+- App permission set to **Read and write**, and the Access Token **regenerated after** that change (a token generated under Read-only never gains write access on its own).
+- No env var for the target account/username on reads — `users tweets`/`users get` always take `--username` explicitly, since which account's voice to read is a property of the task, not the machine.
+
+Source: `plugins/x-post/skills/x-post/`.
 
 ## Adding a new skill
 

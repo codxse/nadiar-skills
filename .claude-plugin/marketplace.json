@@ -75,6 +75,16 @@
       "category": "development",
       "source": "./plugins/meta-ads",
       "keywords": ["meta-ads", "facebook-ads", "instagram-ads", "advertising", "marketing-api", "ads-cli", "mcp", "meta"]
+    },
+    {
+      "name": "x-post",
+      "description": "Post and read on X (Twitter) via API v2 — OAuth 1.0a user context, pure stdlib Python. Covers posting a tweet, reading a user's recent tweets to match their voice, and deleting a tweet.",
+      "author": {
+        "name": "Nadiar"
+      },
+      "category": "development",
+      "source": "./plugins/x-post",
+      "keywords": ["x-post", "x", "twitter", "tweet", "tweeting", "post", "social-media", "api-v2"]
     }
   ]
 }
